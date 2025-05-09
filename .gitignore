@@ -1,0 +1,58 @@
+# Go build output
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Dependency directories
+vendor/
+
+# Go mod cache files
+go.sum
+
+# Editor/IDE metadata
+.vscode/
+.idea/
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# macOS and Windows system files
+.DS_Store
+Thumbs.db
+
+# Build artifacts and logs
+bin/
+dist/
+*.log
+*.pid
+
+# SQLite databases (auth, metadata, streaming, etc.)
+**/*.db
+
+# SQLC generated files (optional, ignore only if re-generating often)
+**/internal/db/sqlc/*.go
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.rsa
+*.pub
+
+# Docker volumes and mounted local data
+**/data/
+minio_data/
+pg_data/
+
+# Cursor-specific files
+.cursor/
+cursor.log
+*.mdc~
+
+# Node.js (if frontend added later)
+node_modules/
