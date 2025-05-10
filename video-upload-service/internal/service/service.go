@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"time"
 
-	sharedlog "github.com/aser/youtube-clone-platform/internal/shared/log"
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/events"
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/metadata"
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/storage"
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/validation"
+	sharedlog "youtube-clone-platform/internal/shared/log"
+	"youtube-clone-platform/video-upload-service/internal/events"
+	"youtube-clone-platform/video-upload-service/internal/metadata"
+	"youtube-clone-platform/video-upload-service/internal/storage"
+	"youtube-clone-platform/video-upload-service/internal/validation"
 )
 
 type UploadService struct {

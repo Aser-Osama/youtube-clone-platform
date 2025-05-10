@@ -8,9 +8,13 @@ import (
 	"auth-service/internal/middleware"
 	"auth-service/internal/service"
 
+	"context"
 	"database/sql"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -42,6 +46,9 @@ func main() {
 		log.Fatalf("Database ping failed: %v", err)
 	}
 
+	// Ensure database is closed properly
+	defer sqlDB.Close()
+
 	// Initialize repository & services
 	repo := db.NewRepo(sqlDB)
 	authService := service.NewAuthService(repo)
@@ -65,9 +72,36 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "time": time.Now()})
 	})
 
-	// Start server
-	log.Println("Auth service running on :8080")
-	if err := r.Run(":8080"); err != nil {
-		log.Fatalf("Server error: %v", err)
+	// Create HTTP server
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
 	}
+
+	// Start server in a goroutine
+	go func() {
+		log.Println("Auth service running on :8080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	// Accept syscall.SIGINT and syscall.SIGTERM (CTRL+C)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	// Block until a signal is received
+	<-quit
+	log.Println("Shutting down auth server...")
+
+	// Create a deadline to wait for current operations to complete
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Shutdown the server
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	log.Println("Auth server exited gracefully")
 }

@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/metadata"
+	"youtube-clone-platform/video-upload-service/internal/metadata"
+
 	"github.com/segmentio/kafka-go"
 )
 

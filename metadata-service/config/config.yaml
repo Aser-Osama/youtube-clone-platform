@@ -1,0 +1,19 @@
+server:
+  port: 8081
+
+database:
+  path: "./data/metadata.db"
+
+kafka:
+  brokers:
+    - "localhost:29092"
+  topics:
+    video_upload: "video-uploads"
+  group_id: "metadata-service"
+
+minio:
+  endpoint: "localhost:9000"
+  access_key: "minioadmin"
+  secret_key: "minioadmin"
+  use_ssl: false
+  bucket: "videos"

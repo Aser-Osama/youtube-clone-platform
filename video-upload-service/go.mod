@@ -1,9 +1,9 @@
-module github.com/aser/youtube-clone-platform/video-upload-service
+module youtube-clone-platform/video-upload-service
 
 go 1.24.2
 
 require (
-	github.com/aser/youtube-clone-platform/internal/shared/log v0.0.0-00010101000000-000000000000
+	youtube-clone-platform/internal/shared/log v0.0.0-00010101000000-000000000000
 	github.com/gabriel-vasile/mimetype v1.4.2
 	github.com/gin-gonic/gin v1.9.1
 	github.com/google/uuid v1.6.0
@@ -12,7 +12,7 @@ require (
 	github.com/spf13/viper v1.18.2
 )
 
-replace github.com/aser/youtube-clone-platform/internal/shared/log => ../internal/shared/log
+replace youtube-clone-platform/internal/shared/log => ../internal/shared/log
 
 require (
 	github.com/bytedance/sonic v1.9.1 // indirect

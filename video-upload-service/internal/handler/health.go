@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	sharedlog "github.com/aser/youtube-clone-platform/internal/shared/log"
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/storage"
+	sharedlog "youtube-clone-platform/internal/shared/log"
+	"youtube-clone-platform/video-upload-service/internal/storage"
+
 	"github.com/gin-gonic/gin"
 	"github.com/segmentio/kafka-go"
 )

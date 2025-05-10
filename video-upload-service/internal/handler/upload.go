@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/service"
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/validation"
+	"youtube-clone-platform/video-upload-service/internal/service"
+	"youtube-clone-platform/video-upload-service/internal/validation"
+
 	"github.com/gin-gonic/gin"
 )
 

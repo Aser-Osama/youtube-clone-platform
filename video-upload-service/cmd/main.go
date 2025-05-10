@@ -1,14 +1,21 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	sharedlog "github.com/aser/youtube-clone-platform/internal/shared/log"
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/config"
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/events"
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/handler"
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/service"
-	"github.com/aser/youtube-clone-platform/video-upload-service/internal/storage"
+	sharedlog "youtube-clone-platform/internal/shared/log"
+	"youtube-clone-platform/video-upload-service/internal/config"
+	"youtube-clone-platform/video-upload-service/internal/events"
+	"youtube-clone-platform/video-upload-service/internal/handler"
+	"youtube-clone-platform/video-upload-service/internal/service"
+	"youtube-clone-platform/video-upload-service/internal/storage"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -53,10 +60,37 @@ func main() {
 	// Register routes
 	router.POST("/upload", uploadHandler.HandleUpload)
 
-	// Start server
-	sharedlog.Info(fmt.Sprintf("Starting video upload service on port %s", cfg.Port))
-	if err := router.Run(":" + cfg.Port); err != nil {
-		sharedlog.Error(fmt.Sprintf("Failed to start server: %v", err))
-		return
+	// Create HTTP server
+	srv := &http.Server{
+		Addr:    ":" + cfg.Port,
+		Handler: router,
 	}
+
+	// Start server in a goroutine
+	go func() {
+		sharedlog.Info(fmt.Sprintf("Starting video upload service on port %s", cfg.Port))
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			sharedlog.Error(fmt.Sprintf("Failed to start server: %v", err))
+		}
+	}()
+
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	// Accept syscall.SIGINT and syscall.SIGTERM (CTRL+C)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	// Block until a signal is received
+	<-quit
+
+	sharedlog.Info("Shutting down video upload service...")
+
+	// Create a deadline to wait for current operations to complete
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Shutdown the server
+	if err := srv.Shutdown(ctx); err != nil {
+		sharedlog.Error(fmt.Sprintf("Server forced to shutdown: %v", err))
+	}
+
+	sharedlog.Info("Video upload service exited gracefully")
 }

@@ -1,10 +1,7 @@
 package config
 
 import (
-	"log"
-	"os"
-
-	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
 type Config struct {
@@ -18,17 +15,32 @@ type Config struct {
 }
 
 func LoadConfig() *Config {
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file, reading env vars")
-	}
+	// Setup viper to read from .env file
+	viper.SetConfigFile(".env")
+	viper.SetConfigType("env")
+
+	// Read from .env file (ignoring error if file doesn't exist)
+	_ = viper.ReadInConfig()
+
+	// Set default values
+	viper.SetDefault("GOOGLE_CLIENT_ID", "")
+	viper.SetDefault("GOOGLE_CLIENT_SECRET", "")
+	viper.SetDefault("GOOGLE_CALLBACK_URL", "http://localhost:8081/auth/google/callback")
+	viper.SetDefault("SQLITE_PATH", "./data/auth.db")
+	viper.SetDefault("PRIVATE_KEY_PATH", "./keys/app.rsa")
+	viper.SetDefault("PUBLIC_KEY_PATH", "./keys/app.rsa.pub")
+	viper.SetDefault("SESSION_SECRET", "youtube-clone-secret")
+
+	// Also read from environment variables (higher priority than .env)
+	viper.AutomaticEnv()
 
 	return &Config{
-		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-		GoogleCallbackURL:  os.Getenv("GOOGLE_CALLBACK_URL"),
-		DBPath:             os.Getenv("SQLITE_PATH"),
-		PrivateKeyPath:     os.Getenv("PRIVATE_KEY_PATH"),
-		PublicKeyPath:      os.Getenv("PUBLIC_KEY_PATH"),
-		SessionSecret:      os.Getenv("SESSION_SECRET"),
+		GoogleClientID:     viper.GetString("GOOGLE_CLIENT_ID"),
+		GoogleClientSecret: viper.GetString("GOOGLE_CLIENT_SECRET"),
+		GoogleCallbackURL:  viper.GetString("GOOGLE_CALLBACK_URL"),
+		DBPath:             viper.GetString("SQLITE_PATH"),
+		PrivateKeyPath:     viper.GetString("PRIVATE_KEY_PATH"),
+		PublicKeyPath:      viper.GetString("PUBLIC_KEY_PATH"),
+		SessionSecret:      viper.GetString("SESSION_SECRET"),
 	}
 }
