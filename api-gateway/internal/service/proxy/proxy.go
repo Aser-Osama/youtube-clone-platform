@@ -53,8 +53,13 @@ func (p *ReverseProxy) ProxyRequest(targetURL, path string, preservePath bool) g
 
 			// Path handling
 			if preservePath {
-				// For standardized paths, keep the full path
-				req.URL.Path = c.Request.URL.Path
+				// Use the target path directly instead of preserving the full gateway path
+				// Replace any path variables (like :id) with their actual values
+				processedPath := path
+				for _, param := range c.Params {
+					processedPath = strings.Replace(processedPath, ":"+param.Key, param.Value, -1)
+				}
+				req.URL.Path = processedPath
 			} else {
 				// For non-standardized paths (like health checks), use the specified path
 				// Replace any path variables (like :id) with their actual values

@@ -227,9 +227,6 @@ func (s *GatewayService) proxyRequest(targetURL string) gin.HandlerFunc {
 					req.Header.Add(key, value)
 				}
 			}
-
-			// Modify the path to include /api/v1 prefix
-			req.URL.Path = "/api/v1" + req.URL.Path
 		}
 
 		// Add error handling
@@ -274,9 +271,6 @@ func (s *GatewayService) authReverseProxy() gin.HandlerFunc {
 				req.Header.Add(key, value)
 			}
 		}
-
-		// Modify the path to include /api/v1 prefix
-		req.URL.Path = "/api/v1" + req.URL.Path
 	}
 
 	// Add error handling
