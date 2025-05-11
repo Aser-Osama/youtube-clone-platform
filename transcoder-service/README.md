@@ -38,7 +38,7 @@ The service can be configured using environment variables or a `.env` file. The 
 
 | Variable                  | Description                                   | Default              |
 | ------------------------- | --------------------------------------------- | -------------------- |
-| `PORT`                    | HTTP server port                              | 8080                 |
+| `PORT`                    | HTTP server port                              | 8083                 |
 | `KAFKA_BROKERS`           | Kafka broker addresses                        | localhost:9092       |
 | `KAFKA_TOPIC`             | Kafka topic for video upload events           | video-uploads        |
 | `KAFKA_GROUP_ID`          | Kafka consumer group ID                       | transcoder-service   |

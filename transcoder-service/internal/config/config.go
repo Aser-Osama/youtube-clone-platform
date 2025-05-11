@@ -69,7 +69,7 @@ func Load() (*Config, error) {
 	_ = viper.ReadInConfig()
 
 	// Set default values
-	viper.SetDefault("PORT", "8082")
+	viper.SetDefault("PORT", "8083")
 	viper.SetDefault("MINIO_ENDPOINT", "localhost:9000")
 	viper.SetDefault("MINIO_ACCESS_KEY", "minioadmin")
 	viper.SetDefault("MINIO_SECRET_KEY", "minioadmin")

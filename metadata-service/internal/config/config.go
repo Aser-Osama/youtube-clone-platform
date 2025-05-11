@@ -29,6 +29,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetConfigType("env")
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.SetDefault("SERVER_PORT", "8082")
 
 	if err := viper.ReadInConfig(); err != nil {
 		return nil, err

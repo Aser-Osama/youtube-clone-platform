@@ -22,7 +22,7 @@ const player = videojs('videoPlayer', {
 
 // API endpoints
 const API_BASE = 'http://localhost:8090/api/v1/streaming';  // Updated to use API gateway with new path
-const METADATA_API = 'http://localhost:8081/api/v1/metadata'; // Updated to use API gateway with new path
+const METADATA_API = 'http://localhost:8082/api/v1/metadata'; // Updated to use API gateway with new path
 
 // DOM elements
 const videoList = document.getElementById('videoList');

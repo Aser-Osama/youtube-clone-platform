@@ -65,12 +65,13 @@ kill_if_running "api-gateway"
 kill_if_running "metadata-service"
 kill_if_running "streaming-service"
 kill_if_running "video-upload-service"
+kill_if_running "transcoder-service"
 
 # Free up commonly used ports
 print_status "Checking and freeing up ports..."
 kill_port 8080  # Auth Service
-kill_port 8081  # Metadata Service
-kill_port 8082  # Upload Service
+kill_port 8082  # Metadata Service
+kill_port 8083  # Transcoder Service
 kill_port 8085  # API Gateway
 kill_port 8090  # Streaming Service
 
@@ -103,18 +104,21 @@ print_status "Starting services..."
 # Start auth-service
 start_service "Auth Service" "go run cmd/main.go" "../auth-service"
 
-# Start api-gateway
-start_service "API Gateway" "go run cmd/main.go" "../api-gateway"
-
 # Start metadata-service
-start_service "Metadata Service" "go run cmd/main.go" "../metadata-service"
+start_service "Metadata Service" "PORT=8082 go run cmd/main.go" "../metadata-service"
 
 # Start streaming-service
-start_service "Streaming Service" "go run cmd/main.go" "../streaming-service"
+start_service "Streaming Service" "PORT=8090 go run cmd/main.go" "../streaming-service"
 
 # Start upload-service
-start_service "Upload Service" "go run cmd/main.go" "../video-upload-service"
+start_service "Upload Service" "PORT=8081 go run cmd/main.go" "../video-upload-service"
+
+# Start api-gateway
+start_service "API Gateway" "PORT=8085 go run cmd/main.go" "../api-gateway"
+
+# Start transcoder-service
+start_service "Transcoder Service" "PORT=8083 go run cmd/main.go" "../transcoder-service"
 
 print_status "All services started!"
 print_status "You can view each service's output in its respective terminal tab."
-print_status "To stop all services, run: ./scripts/stop_all_services.sh" 
+print_status "To stop all services, run: ./scripts/stop_all_services.sh"

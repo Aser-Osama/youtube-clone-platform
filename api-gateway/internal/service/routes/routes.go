@@ -171,28 +171,28 @@ func (r *Router) setupFrontendRoutes() {
 
 // Setup auth service public routes
 func (r *Router) setupAuthPublicRoutes(group *gin.RouterGroup) {
-	group.GET("/google/login", r.proxy.ProxyRequest(r.config.Services.Auth, "/api/v1/auth/google/login", true))
-	group.GET("/google/callback", r.proxy.ProxyRequest(r.config.Services.Auth, "/api/v1/auth/google/callback", true))
-	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Auth, "/api/v1/auth/health", true))
+	group.GET("/google/login", r.proxy.ProxyRequest(r.config.Services.Auth, "/auth/google/login", true))
+	group.GET("/google/callback", r.proxy.ProxyRequest(r.config.Services.Auth, "/auth/google/callback", true))
+	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Auth, "/auth/health", true))
 }
 
 // Setup auth service protected routes
 func (r *Router) setupAuthProtectedRoutes(group *gin.RouterGroup) {
-	group.POST("/refresh", r.proxy.ProxyRequest(r.config.Services.Auth, "/api/v1/auth/refresh", true))
-	group.POST("/logout", r.proxy.ProxyRequest(r.config.Services.Auth, "/api/v1/auth/logout", true))
+	group.POST("/refresh", r.proxy.ProxyRequest(r.config.Services.Auth, "/auth/refresh", true))
+	group.POST("/logout", r.proxy.ProxyRequest(r.config.Services.Auth, "/auth/logout", true))
 }
 
 // Setup streaming service public routes
 func (r *Router) setupStreamingPublicRoutes(group *gin.RouterGroup, rateLimitMiddleware *middleware.RateLimitMiddleware) {
 	group.Use(rateLimitMiddleware.RateLimit())
-	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Streaming, "/api/v1/streaming/health", true))
-	group.GET("/videos/:id", r.proxy.ProxyRequest(r.config.Services.Streaming, "/api/v1/streaming/videos/:id", true))
+	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Streaming, "/health", true))
+	group.GET("/videos/:id", r.proxy.ProxyRequest(r.config.Services.Streaming, "/videos/:id", true))
 }
 
 // Setup metadata service public routes
 func (r *Router) setupMetadataPublicRoutes(group *gin.RouterGroup, rateLimitMiddleware *middleware.RateLimitMiddleware) {
 	group.Use(rateLimitMiddleware.RateLimit())
-	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Metadata, "/api/v1/metadata/health", true))
+	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Metadata, "/health", true))
 }
 
 // Setup metadata service protected routes
@@ -208,7 +208,7 @@ func (r *Router) setupMetadataProtectedRoutes(group *gin.RouterGroup, rateLimitM
 // Setup upload service public routes
 func (r *Router) setupUploadPublicRoutes(group *gin.RouterGroup, rateLimitMiddleware *middleware.RateLimitMiddleware) {
 	group.Use(rateLimitMiddleware.RateLimit())
-	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Upload, "/api/v1/upload/health", true))
+	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Upload, "/health", true))
 }
 
 // Setup upload service protected routes
@@ -221,7 +221,7 @@ func (r *Router) setupUploadProtectedRoutes(group *gin.RouterGroup, rateLimitMid
 // Setup transcoder service public routes
 func (r *Router) setupTranscoderPublicRoutes(group *gin.RouterGroup, rateLimitMiddleware *middleware.RateLimitMiddleware) {
 	group.Use(rateLimitMiddleware.RateLimit())
-	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Transcoder, "/api/v1/transcoder/health", true))
+	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Transcoder, "/health", true))
 }
 
 // Setup transcoder service protected routes

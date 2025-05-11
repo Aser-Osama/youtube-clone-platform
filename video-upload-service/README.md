@@ -16,7 +16,7 @@ The service uses environment variables for configuration:
 
 | Variable         | Description                   | Default         |
 | ---------------- | ----------------------------- | --------------- |
-| PORT             | HTTP port to listen on        | 8080            |
+| PORT             | HTTP port to listen on        | 8081            |
 | MAX_BYTES        | Maximum upload size in bytes  | 1GB             |
 | MINIO_ENDPOINT   | MinIO server address          | localhost:9000  |
 | MINIO_ACCESS_KEY | MinIO access key              | minioadmin      |

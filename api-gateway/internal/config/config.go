@@ -16,10 +16,11 @@ type ServerConfig struct {
 }
 
 type ServicesConfig struct {
-	Auth      string `mapstructure:"auth"`
-	Metadata  string `mapstructure:"metadata"`
-	Streaming string `mapstructure:"streaming"`
-	Upload    string `mapstructure:"upload"`
+	Auth       string `mapstructure:"auth"`
+	Metadata   string `mapstructure:"metadata"`
+	Streaming  string `mapstructure:"streaming"`
+	Upload     string `mapstructure:"upload"`
+	Transcoder string `mapstructure:"transcoder"`
 }
 
 type JWTConfig struct {
@@ -35,7 +36,12 @@ func LoadConfig() (*Config, error) {
 	viper.AutomaticEnv()
 
 	// Set default values
-	viper.SetDefault("SERVER_PORT", 8080)
+	viper.SetDefault("SERVER_PORT", 8085)
+	viper.SetDefault("AUTH_SERVICE_URL", "http://localhost:8080")
+	viper.SetDefault("METADATA_SERVICE_URL", "http://localhost:8082")
+	viper.SetDefault("TRANSCODER_SERVICE_URL", "http://localhost:8083")
+	viper.SetDefault("STREAMING_SERVICE_URL", "http://localhost:8090")
+	viper.SetDefault("UPLOAD_SERVICE_URL", "http://localhost:8081")
 	viper.SetDefault("RATE_LIMIT_REQUESTS", 100)
 	viper.SetDefault("RATE_LIMIT_PERIOD", "1m")
 
@@ -48,10 +54,11 @@ func LoadConfig() (*Config, error) {
 			Port: viper.GetInt("SERVER_PORT"),
 		},
 		Services: ServicesConfig{
-			Auth:      viper.GetString("AUTH_SERVICE_URL"),
-			Metadata:  viper.GetString("METADATA_SERVICE_URL"),
-			Streaming: viper.GetString("STREAMING_SERVICE_URL"),
-			Upload:    viper.GetString("UPLOAD_SERVICE_URL"),
+			Auth:       viper.GetString("AUTH_SERVICE_URL"),
+			Metadata:   viper.GetString("METADATA_SERVICE_URL"),
+			Streaming:  viper.GetString("STREAMING_SERVICE_URL"),
+			Upload:     viper.GetString("UPLOAD_SERVICE_URL"),
+			Transcoder: viper.GetString("TRANSCODER_SERVICE_URL"),
 		},
 		JWT: JWTConfig{
 			PublicKeyPath: viper.GetString("JWT_PUBLIC_KEY_PATH"),

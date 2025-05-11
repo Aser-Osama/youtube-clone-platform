@@ -95,7 +95,7 @@ func main() {
 	// Create HTTP server
 	port := cfg.ServerPort
 	if port == "" {
-		port = "8081"
+		port = "8082"
 	}
 
 	srv := &http.Server{

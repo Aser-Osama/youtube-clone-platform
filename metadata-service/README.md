@@ -19,7 +19,7 @@ Retrieves metadata for a specific video.
 **Request Example:**
 
 ```bash
-curl -X GET http://localhost:8081/api/v1/videos/12345
+curl -X GET http://localhost:8082/api/v1/videos/12345
 ```
 
 **Response Example:**
@@ -41,7 +41,7 @@ Retrieves a list of recent videos. Supports pagination with the `limit` query pa
 **Request Example:**
 
 ```bash
-curl -X GET "http://localhost:8081/api/v1/videos?limit=10"
+curl -X GET "http://localhost:8082/api/v1/videos?limit=10"
 ```
 
 **Response Example:**
@@ -68,7 +68,7 @@ Increments the view count for a video. Requires `X-User-ID` header.
 **Request Example:**
 
 ```bash
-curl -X POST http://localhost:8081/api/v1/videos/12345/views -H "X-User-ID: user123"
+curl -X POST http://localhost:8082/api/v1/videos/12345/views -H "X-User-ID: user123"
 ```
 
 **Response Example:**
@@ -86,7 +86,7 @@ The service can be configured using a `.env` file:
 **.env Example:**
 
 ```env
-SERVER_PORT=8081
+SERVER_PORT=8082
 
 DATABASE_PATH=./data/metadata.db
 

@@ -19,8 +19,9 @@ This is the API Gateway for the YouTube-style video streaming platform. It route
   SERVER_PORT=8085
   AUTH_SERVICE_URL=http://localhost:8080
   METADATA_SERVICE_URL=http://localhost:8082
-  STREAMING_SERVICE_URL=http://localhost:8083
-  UPLOAD_SERVICE_URL=http://localhost:8084
+  STREAMING_SERVICE_URL=http://localhost:8090
+  UPLOAD_SERVICE_URL=http://localhost:8081
+  TRANSCODER_SERVICE_URL=http://localhost:8083
   JWT_PUBLIC_KEY_PATH=keys/public.pem
   RATE_LIMIT_REQUESTS=100
   RATE_LIMIT_PERIOD=1m
