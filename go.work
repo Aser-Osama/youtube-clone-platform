@@ -6,4 +6,6 @@ use (
 	./video-upload-service
 	./transcoder-service
 	./streaming-service
+	./api-gateway
+	./auth-service
 )
