@@ -1,0 +1,694 @@
+basePath: /
+definitions:
+  handler.CreateVideoRequest:
+    properties:
+      description:
+        example: Video description here
+        type: string
+      duration:
+        example: 180
+        type: integer
+      thumbnail:
+        example: https://example.com/thumbnails/abc123.png
+        type: string
+      title:
+        example: My Video Title
+        type: string
+      url:
+        example: https://example.com/videos/abc123
+        type: string
+      userId:
+        example: user123
+        type: string
+    required:
+    - title
+    - userId
+    type: object
+  handler.TranscodeJobRequest:
+    properties:
+      formats:
+        example:
+        - 480p
+        - 720p
+        - 1080p
+        items:
+          type: string
+        type: array
+      priority:
+        example: 1
+        type: integer
+      videoId:
+        example: abc123
+        type: string
+    required:
+    - formats
+    - videoId
+    type: object
+  handler.TranscodeJobResponse:
+    properties:
+      createdAt:
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      formats:
+        example:
+        - 480p
+        - 720p
+        - 1080p
+        items:
+          type: string
+        type: array
+      jobId:
+        example: job123
+        type: string
+      progress:
+        example: 45
+        type: integer
+      status:
+        example: processing
+        type: string
+      updatedAt:
+        example: "2023-01-01T12:05:00Z"
+        type: string
+      videoId:
+        example: abc123
+        type: string
+    type: object
+  handler.UploadVideoResponse:
+    properties:
+      filename:
+        example: my-video.mp4
+        type: string
+      id:
+        example: abc123
+        type: string
+      size:
+        example: 1048576
+        type: integer
+      status:
+        example: processing
+        type: string
+      url:
+        example: https://example.com/videos/abc123/my-video.mp4
+        type: string
+    type: object
+  handler.VideoResponse:
+    properties:
+      createdAt:
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      description:
+        example: Video description here
+        type: string
+      duration:
+        example: 180
+        type: integer
+      id:
+        example: abc123
+        type: string
+      status:
+        example: published
+        type: string
+      thumbnail:
+        example: https://example.com/thumbnails/abc123.png
+        type: string
+      title:
+        example: My Video Title
+        type: string
+      updatedAt:
+        example: "2023-01-01T12:00:00Z"
+        type: string
+      url:
+        example: https://example.com/videos/abc123
+        type: string
+      userId:
+        example: user123
+        type: string
+      views:
+        example: 1000
+        type: integer
+    type: object
+host: localhost:8085
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: API Gateway for the YouTube Clone Platform
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: YouTube Clone API Gateway
+  version: "1.0"
+paths:
+  /api/v1/auth/google/callback:
+    get:
+      description: Handles the callback from Google OAuth
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful with token
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Google OAuth Callback
+      tags:
+      - auth
+  /api/v1/auth/google/login:
+    get:
+      description: Initiates login with Google OAuth
+      produces:
+      - application/json
+      responses:
+        "302":
+          description: Redirect to Google OAuth
+          schema:
+            type: string
+      summary: Google OAuth Login
+      tags:
+      - auth
+  /api/v1/auth/health:
+    get:
+      description: Get health status of the Auth Service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Check Auth Service health
+      tags:
+      - health
+  /api/v1/auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Logout and invalidate token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logged out successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - auth
+  /api/v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: Refresh JWT token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Token refreshed successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Refresh Token
+      tags:
+      - auth
+  /api/v1/metadata/health:
+    get:
+      description: Get health status of the Metadata Service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Check Metadata Service health
+      tags:
+      - health
+  /api/v1/metadata/videos:
+    get:
+      description: Get a list of all videos
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handler.VideoResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get all videos
+      tags:
+      - metadata
+    post:
+      consumes:
+      - application/json
+      description: Create a new video metadata entry
+      parameters:
+      - description: Video details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateVideoRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.VideoResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create video
+      tags:
+      - metadata
+  /api/v1/metadata/videos/{id}:
+    delete:
+      description: Delete a video's metadata
+      parameters:
+      - description: Video ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Video not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete video
+      tags:
+      - metadata
+    get:
+      description: Get a video's metadata by its ID
+      parameters:
+      - description: Video ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.VideoResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Video not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get video by ID
+      tags:
+      - metadata
+    put:
+      consumes:
+      - application/json
+      description: Update a video's metadata
+      parameters:
+      - description: Video ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated video details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CreateVideoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.VideoResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Video not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update video
+      tags:
+      - metadata
+  /api/v1/streaming/health:
+    get:
+      description: Get health status of the Streaming Service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Check Streaming Service health
+      tags:
+      - health
+  /api/v1/streaming/videos/{id}:
+    get:
+      description: Get video stream by ID (supports range requests)
+      parameters:
+      - description: Video ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      - video/mp4
+      responses:
+        "200":
+          description: Video stream
+          schema:
+            type: file
+        "206":
+          description: Partial video stream
+          schema:
+            type: file
+        "404":
+          description: Video not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Stream a video
+      tags:
+      - streaming
+  /api/v1/transcoder/health:
+    get:
+      description: Get health status of the Transcoder Service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Check Transcoder Service health
+      tags:
+      - health
+  /api/v1/transcoder/jobs:
+    post:
+      consumes:
+      - application/json
+      description: Submit a new video for transcoding
+      parameters:
+      - description: Transcoding job details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.TranscodeJobRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Job created successfully
+          schema:
+            $ref: '#/definitions/handler.TranscodeJobResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create a new transcoding job
+      tags:
+      - transcoder
+  /api/v1/transcoder/jobs/{id}:
+    get:
+      description: Get the status of a transcoding job
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job details
+          schema:
+            $ref: '#/definitions/handler.TranscodeJobResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Job not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get job status
+      tags:
+      - transcoder
+  /api/v1/upload/health:
+    get:
+      description: Get health status of the Upload Service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Check Upload Service health
+      tags:
+      - health
+  /api/v1/upload/videos:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload a new video file
+      parameters:
+      - description: Video file to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.UploadVideoResponse'
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Upload a video
+      tags:
+      - upload
+  /api/v1/upload/videos/process:
+    post:
+      consumes:
+      - application/json
+      description: Start processing a previously uploaded video
+      parameters:
+      - description: Process request
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Processing started
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Video not found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Process an uploaded video
+      tags:
+      - upload
+  /health:
+    get:
+      description: Get a simple health status of the API Gateway
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Check API Gateway health
+      tags:
+      - health
+  /health/all:
+    get:
+      description: Get health status of all microservices
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Check all services health
+      tags:
+      - health
+securityDefinitions:
+  BearerAuth:
+    description: Type "Bearer" followed by a space and JWT token.
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
