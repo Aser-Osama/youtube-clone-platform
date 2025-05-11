@@ -35,12 +35,19 @@ func main() {
 	}
 	defer db.Close()
 
-	// Initialize Kafka consumer
-	kafkaConsumer, err := initKafkaConsumer(cfg)
+	// Initialize Kafka consumers
+	uploadConsumer, err := initKafkaConsumer(cfg.KafkaBrokers, cfg.KafkaTopic, cfg.KafkaGroupID)
 	if err != nil {
-		log.Fatalf("Failed to initialize Kafka consumer: %v", err)
+		log.Fatalf("Failed to initialize video upload Kafka consumer: %v", err)
 	}
-	defer kafkaConsumer.Close()
+	defer uploadConsumer.Close()
+
+	// Initialize transcoding complete consumer
+	transcodingConsumer, err := initKafkaConsumer(cfg.KafkaBrokers, cfg.TranscodingTopic, cfg.TranscodingGroupID)
+	if err != nil {
+		log.Fatalf("Failed to initialize transcoding complete Kafka consumer: %v", err)
+	}
+	defer transcodingConsumer.Close()
 
 	// Initialize MinIO client
 	minioClient, err := initMinioClient(cfg.MinIO)
@@ -54,15 +61,34 @@ func main() {
 
 	// Setup HTTP server
 	router := gin.Default()
+
+	// Add CORS middleware
+	router.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-User-ID")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+		c.Next()
+	})
+
 	metadataHandler.RegisterRoutes(router)
 
 	// Create context for consumer that can be canceled
 	consumerCtx, consumerCancel := context.WithCancel(context.Background())
 
-	// Start Kafka consumer in a goroutine
+	// Start Kafka consumers in goroutines
 	go func() {
-		if err := kafkautil.StartConsumer(consumerCtx, kafkaConsumer, metadataService); err != nil && err != context.Canceled {
-			log.Printf("Kafka consumer error: %v", err)
+		if err := kafkautil.StartConsumer(consumerCtx, uploadConsumer, metadataService); err != nil && err != context.Canceled {
+			log.Printf("Video upload Kafka consumer error: %v", err)
+		}
+	}()
+
+	go func() {
+		if err := kafkautil.StartTranscodingCompleteConsumer(consumerCtx, transcodingConsumer, metadataService); err != nil && err != context.Canceled {
+			log.Printf("Transcoding complete Kafka consumer error: %v", err)
 		}
 	}()
 
@@ -111,8 +137,8 @@ func initDB(databasePath string) (*db.Store, error) {
 	return db.New(databasePath)
 }
 
-func initKafkaConsumer(cfg *config.Config) (*kafka.Reader, error) {
-	return kafkautil.NewConsumer(cfg.KafkaBrokers, cfg.KafkaTopic, cfg.KafkaGroupID)
+func initKafkaConsumer(brokers []string, topic, groupID string) (*kafka.Reader, error) {
+	return kafkautil.NewConsumer(brokers, topic, groupID)
 }
 
 func initMinioClient(minioCfg config.MinIOConfig) (*minio.Client, error) {

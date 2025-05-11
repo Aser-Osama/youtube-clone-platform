@@ -9,7 +9,9 @@ kafka:
     - "localhost:29092"
   topics:
     video_upload: "video-uploads"
+    transcoding_complete: "transcoding-complete"
   group_id: "metadata-service"
+  transcoding_group_id: "metadata-transcoding-service"
 
 minio:
   endpoint: "localhost:9000"

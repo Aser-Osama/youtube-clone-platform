@@ -98,3 +98,39 @@ func StartConsumer(ctx context.Context, reader *kafka.Reader, metadataService *s
 		}
 	}
 }
+
+// StartTranscodingCompleteConsumer starts consuming transcoding complete messages from Kafka
+func StartTranscodingCompleteConsumer(ctx context.Context, reader *kafka.Reader, metadataService *service.MetadataService) error {
+	log.Printf("Starting transcoding complete consumer...")
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			msg, err := reader.ReadMessage(ctx)
+			if err != nil {
+				log.Printf("Error reading transcoding complete message: %v", err)
+				continue
+			}
+
+			log.Printf("Received transcoding complete message: %s", string(msg.Value))
+
+			var event types.TranscodingCompleteEvent
+			if err := json.Unmarshal(msg.Value, &event); err != nil {
+				log.Printf("Error unmarshaling transcoding complete message: %v", err)
+				log.Printf("Message content: %s", string(msg.Value))
+				continue
+			}
+
+			log.Printf("Successfully unmarshaled transcoding complete event for video ID: %s", event.VideoID)
+
+			// Update metadata with transcoding complete information
+			if err := metadataService.UpdateVideoFromTranscodingComplete(ctx, &event); err != nil {
+				log.Printf("Error updating metadata after transcoding: %v", err)
+				continue
+			}
+
+			log.Printf("Successfully processed transcoding complete event for video ID: %s", event.VideoID)
+		}
+	}
+}

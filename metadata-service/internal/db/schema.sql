@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS videos (
     minio_path TEXT NOT NULL,
     hls_path TEXT,
     thumbnail_path TEXT,
+    mp4_path TEXT,
     tags TEXT
 );
 
@@ -42,4 +43,4 @@ CREATE INDEX IF NOT EXISTS idx_videos_user_id ON videos(user_id);
 CREATE INDEX IF NOT EXISTS idx_videos_created_at ON videos(created_at);
 CREATE INDEX IF NOT EXISTS idx_videos_status ON videos(status);
 CREATE INDEX IF NOT EXISTS idx_video_views_video_id ON video_views(video_id);
-CREATE INDEX IF NOT EXISTS idx_video_views_user_id ON video_views(user_id); 
+CREATE INDEX IF NOT EXISTS idx_video_views_user_id ON video_views(user_id);

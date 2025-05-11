@@ -7,12 +7,14 @@ import (
 )
 
 type Config struct {
-	DatabasePath string
-	KafkaBrokers []string
-	KafkaTopic   string
-	KafkaGroupID string
-	MinIO        MinIOConfig
-	ServerPort   string
+	DatabasePath       string
+	KafkaBrokers       []string
+	KafkaTopic         string
+	KafkaGroupID       string
+	TranscodingTopic   string
+	TranscodingGroupID string
+	MinIO              MinIOConfig
+	ServerPort         string
 }
 
 type MinIOConfig struct {
@@ -33,10 +35,12 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &Config{
-		DatabasePath: viper.GetString("DATABASE_PATH"),
-		KafkaBrokers: viper.GetStringSlice("KAFKA_BROKERS"),
-		KafkaTopic:   viper.GetString("KAFKA_TOPICS_VIDEO_UPLOAD"),
-		KafkaGroupID: viper.GetString("KAFKA_GROUP_ID"),
+		DatabasePath:       viper.GetString("DATABASE_PATH"),
+		KafkaBrokers:       viper.GetStringSlice("KAFKA_BROKERS"),
+		KafkaTopic:         viper.GetString("KAFKA_TOPICS_VIDEO_UPLOAD"),
+		KafkaGroupID:       viper.GetString("KAFKA_GROUP_ID"),
+		TranscodingTopic:   viper.GetString("KAFKA_TOPICS_TRANSCODING_COMPLETE"),
+		TranscodingGroupID: viper.GetString("KAFKA_TRANSCODING_GROUP_ID"),
 		MinIO: MinIOConfig{
 			Endpoint:  viper.GetString("MINIO_ENDPOINT"),
 			AccessKey: viper.GetString("MINIO_ACCESS_KEY"),

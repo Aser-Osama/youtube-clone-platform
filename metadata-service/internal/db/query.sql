@@ -4,15 +4,15 @@ INSERT INTO videos (
     bitrate, file_size, checksum, created_at, codec, frame_rate,
     aspect_ratio, audio_codec, audio_bitrate, audio_channels,
     content_type, original_filename, file_extension, sanitized_filename,
-    status, minio_path, hls_path, thumbnail_path, tags
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    status, minio_path, hls_path, thumbnail_path, mp4_path, tags
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- name: GetVideo :one
 SELECT * FROM videos WHERE id = ? LIMIT 1;
 
 -- name: GetRecentVideos :many
 SELECT * FROM videos 
-WHERE status = 'ready'
+WHERE status IN ('ready', 'completed')
 ORDER BY created_at DESC
 LIMIT ?;
 
@@ -30,7 +30,7 @@ SELECT COUNT(*) as count FROM video_views WHERE video_id = ? AND user_id = ?;
 
 -- name: SearchVideos :many
 SELECT * FROM videos 
-WHERE status = 'ready'
+WHERE status IN ('ready', 'completed')
 AND (
     title LIKE ? OR 
     description LIKE ? OR 
@@ -41,6 +41,15 @@ LIMIT ?;
 
 -- name: GetVideosByUser :many
 SELECT * FROM videos 
-WHERE user_id = ? AND status = 'ready'
+WHERE user_id = ? AND status IN ('ready', 'completed')
 ORDER BY created_at DESC
-LIMIT ?; 
+LIMIT ?;
+
+-- name: UpdateVideoTranscodingComplete :exec
+UPDATE videos 
+SET 
+    status = ?,
+    hls_path = ?,
+    thumbnail_path = ?,
+    mp4_path = ?
+WHERE id = ?;

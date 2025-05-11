@@ -4,4 +4,6 @@ use (
 	./internal/shared/log
 	./metadata-service
 	./video-upload-service
+	./transcoder-service
+	./streaming-service
 )

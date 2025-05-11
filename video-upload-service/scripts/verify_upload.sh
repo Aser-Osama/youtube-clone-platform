@@ -48,6 +48,55 @@ else
     mc ls minio/rawvideos/
 fi
 
+# Check for transcoded MP4 files in different qualities
+echo -e "\nChecking for transcoded MP4 files in different qualities..."
+QUALITIES=("1080p" "720p" "480p" "360p" "240p")
+FOUND_MP4=false
+
+for QUALITY in "${QUALITIES[@]}"; do
+    MP4_PATH="videos/$VIDEO_ID/mp4/$QUALITY.mp4"
+    if mc ls minio/$MP4_PATH &> /dev/null; then
+        echo "✅ Found MP4 in $QUALITY quality at $MP4_PATH"
+        mc ls minio/$MP4_PATH
+        FOUND_MP4=true
+        
+        # Show how to play this quality
+        echo "To view this quality in a browser:"
+        echo "http://localhost:8082/videos/$VIDEO_ID/mp4?quality=$QUALITY"
+    fi
+done
+
+if [ "$FOUND_MP4" = false ]; then
+    echo "❌ No transcoded MP4 files found. Transcoding may still be in progress."
+    echo "Checking generic mp4 location..."
+    MP4_PATH="videos/$VIDEO_ID/mp4/video.mp4"
+    if mc ls minio/$MP4_PATH &> /dev/null; then
+        echo "✅ Found generic MP4 at $MP4_PATH"
+        mc ls minio/$MP4_PATH
+    fi
+fi
+
+# Check for HLS streams
+echo -e "\nChecking for HLS streams..."
+HLS_MASTER="videos/$VIDEO_ID/hls/master.m3u8"
+if mc ls minio/$HLS_MASTER &> /dev/null; then
+    echo "✅ Found HLS master playlist at $HLS_MASTER"
+    mc ls minio/$HLS_MASTER
+    
+    # Check for resolution-specific playlists
+    for QUALITY in "${QUALITIES[@]}"; do
+        HLS_PLAYLIST="videos/$VIDEO_ID/hls/$QUALITY/playlist.m3u8"
+        if mc ls minio/$HLS_PLAYLIST &> /dev/null; then
+            echo "✅ Found HLS playlist for $QUALITY at $HLS_PLAYLIST"
+        fi
+    done
+    
+    echo -e "\nTo view HLS stream in a browser:"
+    echo "http://localhost:8082/videos/$VIDEO_ID/hls"
+else
+    echo "❌ HLS master playlist not found. Transcoding may still be in progress."
+fi
+
 # Check if Kafka is running
 echo -e "\nChecking Kafka connection..."
 if ! kcat -b localhost:29092 -L &> /dev/null; then
@@ -79,4 +128,4 @@ else
     else
         echo "❌ Failed to create Kafka topic"
     fi
-fi 
+fi

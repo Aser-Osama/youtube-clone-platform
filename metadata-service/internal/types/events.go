@@ -32,3 +32,15 @@ type VideoMetadata struct {
 	FileExtension     string  `json:"file_extension"`
 	SanitizedFilename string  `json:"sanitized_filename"`
 }
+
+// TranscodingCompleteEvent represents a transcoding completion event from the transcoder service
+type TranscodingCompleteEvent struct {
+	VideoID       string `json:"video_id"`
+	UserID        string `json:"user_id"`
+	Title         string `json:"title"`
+	HLSPath       string `json:"hls_path"`
+	MP4Path       string `json:"mp4_path"`
+	ThumbnailPath string `json:"thumbnail_path"`
+	Status        string `json:"status"`
+	CompletedAt   string `json:"completed_at"`
+}

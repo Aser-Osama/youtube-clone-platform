@@ -11,7 +11,7 @@ fi
 if [ ! -f "test_video.mp4" ]; then
     echo "Creating test video file..."
     # Create a 1-second test video using ffmpeg
-    ffmpeg -f lavfi -i testsrc=duration=1:size=1280x720:rate=30 -c:v libx264 test_video.mp4
+    ffmpeg -f lavfi -i testsrc=duration=100:size=1280x720:rate=30 -c:v libx264 test_video.mp4
     if [ $? -ne 0 ]; then
         echo "❌ Failed to create test video"
         exit 1

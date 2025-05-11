@@ -43,6 +43,7 @@ type VideoMetadata struct {
 	MinioPath         string         `json:"minio_path"`
 	HLSPath           sql.NullString `json:"hls_path"`
 	ThumbnailPath     sql.NullString `json:"thumbnail_path"`
+	MP4Path           sql.NullString `json:"mp4_path"`
 	Tags              []string       `json:"tags"`
 }
 
@@ -94,6 +95,7 @@ func (s *MetadataService) ConvertUploadMetadata(event *types.VideoUploadEvent) *
 		MinioPath:         fmt.Sprintf("original/%s%s", event.VideoID, event.Metadata.FileExtension),
 		HLSPath:           sql.NullString{String: "", Valid: false},
 		ThumbnailPath:     sql.NullString{String: "", Valid: false},
+		MP4Path:           sql.NullString{String: "", Valid: false},
 		Tags:              []string{},
 	}
 
@@ -134,6 +136,7 @@ func (s *MetadataService) CreateVideoMetadata(ctx context.Context, metadata *Vid
 		MinioPath:         metadata.MinioPath,
 		HlsPath:           metadata.HLSPath,
 		ThumbnailPath:     metadata.ThumbnailPath,
+		Mp4Path:           metadata.MP4Path,
 		Tags:              sql.NullString{String: string(tagsJSON), Valid: true},
 	}
 
@@ -182,6 +185,7 @@ func (s *MetadataService) GetVideoMetadata(ctx context.Context, id string) (*Vid
 		MinioPath:         video.MinioPath,
 		HLSPath:           video.HlsPath,
 		ThumbnailPath:     video.ThumbnailPath,
+		MP4Path:           video.Mp4Path,
 		Tags:              tags,
 	}, nil
 }
@@ -306,8 +310,23 @@ func (s *MetadataService) convertVideos(videos []sqlc.Video) ([]*VideoMetadata, 
 			MinioPath:         video.MinioPath,
 			HLSPath:           video.HlsPath,
 			ThumbnailPath:     video.ThumbnailPath,
+			MP4Path:           video.Mp4Path,
 			Tags:              tags,
 		}
 	}
 	return result, nil
+}
+
+// UpdateVideoFromTranscodingComplete updates a video's metadata after transcoding is complete
+func (s *MetadataService) UpdateVideoFromTranscodingComplete(ctx context.Context, event *types.TranscodingCompleteEvent) error {
+	// Update path information and status
+	params := sqlc.UpdateVideoTranscodingCompleteParams{
+		ID:            event.VideoID,
+		Status:        event.Status,
+		HlsPath:       sql.NullString{String: event.HLSPath, Valid: event.HLSPath != ""},
+		ThumbnailPath: sql.NullString{String: event.ThumbnailPath, Valid: event.ThumbnailPath != ""},
+		Mp4Path:       sql.NullString{String: event.MP4Path, Valid: event.MP4Path != ""},
+	}
+
+	return s.store.UpdateVideoTranscodingComplete(ctx, params)
 }
