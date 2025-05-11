@@ -62,21 +62,30 @@ func main() {
 	streamHandler := handler.NewStreamHandler(minioStorage)
 	healthHandler := handler.NewHealthHandler(minioStorage)
 
-	// Register routes
-	router.GET("/health", healthHandler.HandleHealthCheck)
-	router.GET("/videos/:videoID/hls/manifest", streamHandler.HandleHLSManifest)
-	router.GET("/videos/:videoID/hls/segments/:segment", streamHandler.HandleHLSSegment)
-	router.GET("/videos/:videoID/hls/:resolution/playlist", streamHandler.HandleHLSPlaylist)
-	router.GET("/videos/:videoID/hls/:resolution/:segment", streamHandler.HandleHLSSegment)
-	router.GET("/videos/:videoID/mp4", streamHandler.HandleMP4)
-	router.GET("/videos/:videoID/mp4/qualities", streamHandler.ListMP4Qualities)
-	router.GET("/videos/:videoID/thumbnail", streamHandler.HandleThumbnail)
-
-	// Serve static files
+	// Serve static files at root level
 	router.Static("/static", "./static")
 	router.StaticFile("/", "./static/index.html")
 	router.StaticFile("/app.js", "./static/app.js")
 	router.StaticFile("/favicon.ico", "./static/favicon.ico")
+
+	// Register API routes
+	api := router.Group("/api/v1/streaming")
+	{
+		api.GET("/health", healthHandler.HandleHealthCheck)
+		api.GET("/videos/:videoID/hls/manifest", streamHandler.HandleHLSManifest)
+		api.GET("/videos/:videoID/hls/segments/:segment", streamHandler.HandleHLSSegment)
+		api.GET("/videos/:videoID/hls/:resolution/playlist", streamHandler.HandleHLSPlaylist)
+		api.GET("/videos/:videoID/hls/:resolution/:segment", streamHandler.HandleHLSSegment)
+		api.GET("/videos/:videoID/mp4", streamHandler.HandleMP4)
+		api.GET("/videos/:videoID/mp4/qualities", streamHandler.ListMP4Qualities)
+		api.GET("/videos/:videoID/thumbnail", streamHandler.HandleThumbnail)
+
+		// Also serve static files under /api/v1/streaming
+		api.Static("/static", "./static")
+		api.StaticFile("/", "./static/index.html")
+		api.StaticFile("/app.js", "./static/app.js")
+		api.StaticFile("/favicon.ico", "./static/favicon.ico")
+	}
 
 	// Create HTTP server
 	server := &http.Server{

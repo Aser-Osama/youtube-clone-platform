@@ -25,7 +25,7 @@ func LoadConfig() *Config {
 	// Set default values
 	viper.SetDefault("GOOGLE_CLIENT_ID", "")
 	viper.SetDefault("GOOGLE_CLIENT_SECRET", "")
-	viper.SetDefault("GOOGLE_CALLBACK_URL", "http://localhost:8081/auth/google/callback")
+	viper.SetDefault("GOOGLE_CALLBACK_URL", "http://localhost:8080/api/v1/auth/google/callback")
 	viper.SetDefault("SQLITE_PATH", "./data/auth.db")
 	viper.SetDefault("PRIVATE_KEY_PATH", "./keys/app.rsa")
 	viper.SetDefault("PUBLIC_KEY_PATH", "./keys/app.rsa.pub")

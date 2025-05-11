@@ -20,6 +20,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/sony/gobreaker"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/ulule/limiter/v3"
 	"github.com/ulule/limiter/v3/drivers/store/memory"
 )
@@ -75,6 +77,11 @@ func (s *GatewayService) Start(ctx context.Context) error {
 	return s.router.Run(fmt.Sprintf(":%d", s.config.Server.Port))
 }
 
+func (s *GatewayService) AddSwaggerDocs() {
+	// Add Swagger documentation endpoint
+	s.router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+}
+
 func (s *GatewayService) setupRoutes() {
 	// Initialize middlewares
 	jwtMiddleware := middleware.NewJWTMiddleware(s.publicKey)
@@ -93,45 +100,95 @@ func (s *GatewayService) setupRoutes() {
 		}
 	})
 
-	// Public routes
-	public := s.router.Group("/")
+	// Serve static files at root level
+	s.router.Static("/static", "./static")
+	s.router.StaticFile("/", "./static/index.html")
+	s.router.StaticFile("/app.js", "./static/app.js")
+	s.router.StaticFile("/favicon.ico", "./static/favicon.ico")
+
+	// Health endpoints with rate limiting
+	s.router.GET("/health", rateLimitMiddleware.RateLimit(), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// Streaming service routes
+	s.router.GET("/streaming/*path", s.proxyRequest(s.config.Services.Streaming))
+
+	// Metadata service routes
+	s.router.GET("/metadata/*path", s.proxyRequest(s.config.Services.Metadata))
+
+	// API v1 routes
+	api := s.router.Group("/api/v1")
 	{
-		// Health endpoint with rate limiting
-		public.GET("/health", rateLimitMiddleware.RateLimit(), func(c *gin.Context) {
+		// Health endpoints with rate limiting
+		api.GET("/health", rateLimitMiddleware.RateLimit(), func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{"status": "ok"})
 		})
 
-		// Auth endpoints without rate limiting
-		public.GET("/auth/google/login", s.authReverseProxy())
-		public.GET("/auth/google/callback", s.authReverseProxy())
-		public.GET("/auth/health", s.authReverseProxy())
+		api.GET("/health/all", rateLimitMiddleware.RateLimit(), func(c *gin.Context) {
+			// Check all services health
+			services := map[string]string{
+				"auth":      s.config.Services.Auth,
+				"metadata":  s.config.Services.Metadata,
+				"streaming": s.config.Services.Streaming,
+				"upload":    s.config.Services.Upload,
+			}
 
-		// Streaming service routes with rate limiting
-		streaming := public.Group("/streaming")
+			results := make(map[string]string)
+			for name, url := range services {
+				resp, err := http.Get(url + "/api/v1/health")
+				if err != nil {
+					results[name] = "unhealthy"
+					continue
+				}
+				if resp.StatusCode == http.StatusOK {
+					results[name] = "healthy"
+				} else {
+					results[name] = "unhealthy"
+				}
+				resp.Body.Close()
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"gateway":  "healthy",
+				"services": results,
+			})
+		})
+
+		// Auth service routes
+		auth := api.Group("/auth")
+		{
+			// Public auth endpoints
+			auth.GET("/google/login", s.authReverseProxy())
+			auth.GET("/google/callback", s.authReverseProxy())
+			auth.GET("/health", s.authReverseProxy())
+
+			// Protected auth endpoints
+			protectedAuth := auth.Group("")
+			protectedAuth.Use(jwtMiddleware.VerifyJWT())
+			{
+				protectedAuth.POST("/refresh", s.authReverseProxy())
+				protectedAuth.POST("/logout", s.authReverseProxy())
+			}
+		}
+
+		// Streaming service routes
+		streaming := api.Group("/streaming")
 		streaming.Use(rateLimitMiddleware.RateLimit())
 		{
 			streaming.GET("/videos/:id", s.proxyRequest(s.config.Services.Streaming))
 		}
 
-		// Upload service routes with rate limiting
-		upload := public.Group("/upload")
+		// Upload service routes
+		upload := api.Group("/upload")
 		upload.Use(rateLimitMiddleware.RateLimit())
 		{
 			upload.POST("/videos", s.proxyRequest(s.config.Services.Upload))
 		}
-	}
 
-	// Protected routes
-	protected := s.router.Group("/")
-	protected.Use(jwtMiddleware.VerifyJWT())
-	{
-		// Auth service routes without rate limiting
-		protected.POST("/auth/refresh", s.authReverseProxy())
-		protected.POST("/auth/logout", s.authReverseProxy())
-
-		// Metadata service routes with rate limiting
-		metadata := protected.Group("/metadata")
-		metadata.Use(rateLimitMiddleware.RateLimit())
+		// Metadata service routes
+		metadata := api.Group("/metadata")
+		metadata.Use(rateLimitMiddleware.RateLimit(), jwtMiddleware.VerifyJWT())
 		{
 			metadata.GET("/videos", s.proxyRequest(s.config.Services.Metadata))
 			metadata.GET("/videos/:id", s.proxyRequest(s.config.Services.Metadata))
@@ -218,8 +275,8 @@ func (s *GatewayService) authReverseProxy() gin.HandlerFunc {
 			}
 		}
 
-		// For auth service, we don't need to modify the path
-		req.URL.Path = req.URL.Path
+		// Modify the path to include /api/v1 prefix
+		req.URL.Path = "/api/v1" + req.URL.Path
 	}
 
 	// Add error handling
@@ -240,7 +297,7 @@ func (s *GatewayService) authReverseProxy() gin.HandlerFunc {
 		fmt.Printf("Received request: %s %s\n", c.Request.Method, c.Request.URL.Path)
 
 		// For protected endpoints, verify JWT first
-		if c.Request.URL.Path == "/auth/refresh" || c.Request.URL.Path == "/auth/logout" {
+		if strings.HasSuffix(c.Request.URL.Path, "/refresh") || strings.HasSuffix(c.Request.URL.Path, "/logout") {
 			authHeader := c.GetHeader("Authorization")
 			if authHeader == "" {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization header is required"})

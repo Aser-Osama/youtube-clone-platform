@@ -20,15 +20,9 @@ const player = videojs('videoPlayer', {
     autoplay: false // Ensure no autoplay
 });
 
-// API endpoints - Updated to use standardized paths
-// const API_BASE = 'http://localhost:8085'; // API Gateway URL
-// For production, use the actual API Gateway URL
-// For testing, use the internal service URL
-const API_BASE_METADATA = `http://localhost:8081`; // Updated to use standardized metadata service path
-const API_BASE_STREAMING = `http://localhost:8090`; // Updated to use standardized streaming service path
-
-const API_STREAMING = `${API_BASE_STREAMING}/api/v1/streaming`; // Updated to use standardized streaming service path
-const API_METADATA = `${API_BASE_METADATA}/api/v1/metadata`; // Updated to use standardized metadata service path
+// API endpoints
+const API_BASE = 'http://localhost:8085/api/v1/streaming';  // Updated to use API gateway with new path
+const METADATA_API = 'http://localhost:8085/api/v1/metadata'; // Updated to use API gateway with new path
 
 // DOM elements
 const videoList = document.getElementById('videoList');
@@ -81,9 +75,9 @@ async function fetchRecentVideos() {
     showLoading();
 
     try {
-        console.log('Fetching videos from:', `${API_METADATA}/videos`);
+        console.log('Fetching videos from:', `${METADATA_API}/videos`);
 
-        const response = await fetch(`${API_METADATA}/videos`, {
+        const response = await fetch(`${METADATA_API}/videos`, {
             headers: {
                 'Accept': 'application/json'
             },
@@ -191,32 +185,27 @@ function displayVideos(videos) {
         try {
             const imgElement = document.querySelector(`.video-thumbnail img[data-video-id="${video.id}"]`);
             if (imgElement) {
-                // Test the thumbnail URL to see if it works
-                const thumbnailUrl = `${API_STREAMING}/videos/${video.id}/thumbnail`;
-                console.log(`Testing thumbnail URL for video ${video.id}: ${thumbnailUrl}`);
+                // Use the loadThumbnail function instead of direct fetch
+                const thumbnailUrl = await loadThumbnail(video.id);
+                console.log(`Thumbnail URL for video ${video.id}: ${thumbnailUrl}`);
 
-                const response = await fetch(thumbnailUrl, {
-                    method: 'GET',
-                    redirect: 'follow' // Follow redirects to get the final URL
-                });
+                // Set the thumbnail URL
+                imgElement.src = thumbnailUrl;
 
-                console.log(`Thumbnail response for ${video.id}:`, response.status, response.url);
-
-                if (response.ok) {
-                    // Set the actual thumbnail URL
-                    console.log(`Setting thumbnail for video ${video.id}`);
-                    imgElement.src = response.url;
-                } else {
-                    console.warn(`Thumbnail not available for video ${video.id}, using fallback.`);
-                    imgElement.src = '/static/fallback-thumbnail.png';
-                }
+                // Add error handling for the image
+                imgElement.onerror = async function () {
+                    console.warn(`Failed to load thumbnail for ${video.id}, retrying...`);
+                    // Wait a bit before retrying
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    // Try again with a fresh timestamp
+                    const retryUrl = await loadThumbnail(video.id);
+                    if (retryUrl !== '/static/fallback-thumbnail.png') {
+                        this.src = retryUrl;
+                    }
+                };
             }
         } catch (error) {
             console.error(`Error loading thumbnail for video ${video.id}:`, error);
-            const imgElement = document.querySelector(`.video-thumbnail img[data-video-id="${video.id}"]`);
-            if (imgElement) {
-                imgElement.src = '/static/fallback-thumbnail.png';
-            }
         }
     });
 
@@ -458,7 +447,7 @@ async function prepareHLS() {
         resetQualitySelector();
 
         // First, get the manifest content directly (not the redirect)
-        const manifestResponse = await fetch(`${API_STREAMING}/videos/${currentVideoId}/hls/manifest`);
+        const manifestResponse = await fetch(`${API_BASE}/videos/${currentVideoId}/hls/manifest`);
         if (!manifestResponse.ok) {
             throw new Error('Failed to get HLS manifest');
         }
@@ -477,7 +466,7 @@ async function prepareHLS() {
         }
 
         // Get the manifest URL (for compatibility with browsers that don't need HLS.js)
-        preparedManifestUrl = `${API_STREAMING}/videos/${currentVideoId}/hls/manifest`;
+        preparedManifestUrl = `${API_BASE}/videos/${currentVideoId}/hls/manifest`;
         console.log('HLS manifest URL:', preparedManifestUrl);
 
         // Update the quality display
@@ -506,7 +495,7 @@ async function prepareMP4() {
         const mp4Qualities = await discoverMP4Qualities(currentVideoId);
 
         // Set default URL (highest quality)
-        preparedMP4Url = `${API_STREAMING}/videos/${currentVideoId}/mp4`;
+        preparedMP4Url = `${API_BASE}/videos/${currentVideoId}/mp4`;
         console.log('Default MP4 URL:', preparedMP4Url);
 
         // Update quality selector with available MP4 qualities
@@ -525,7 +514,7 @@ async function prepareMP4() {
             if (mp4Qualities.length > 0) {
                 selectedQuality = mp4Qualities[0].quality;
                 qualitySelector.value = selectedQuality;
-                preparedMP4Url = `${API_STREAMING}/videos/${currentVideoId}/mp4?quality=${selectedQuality}`;
+                preparedMP4Url = `${API_BASE}/videos/${currentVideoId}/mp4?quality=${selectedQuality}`;
 
                 // Update the video resolution display if we have a selected video
                 if (selectedVideoData && mp4Qualities.length > 0) {
@@ -573,7 +562,7 @@ async function discoverMP4Qualities(videoId) {
 
     // Check if the video exists first with a regular GET request to the default URL
     try {
-        const defaultResponse = await fetch(`${API_STREAMING}/videos/${videoId}/mp4`, {
+        const defaultResponse = await fetch(`${API_BASE}/videos/${videoId}/mp4`, {
             method: 'GET',
             // Don't follow redirects so we can check the status
             redirect: 'manual'
@@ -589,7 +578,7 @@ async function discoverMP4Qualities(videoId) {
             for (const quality of standardQualities) {
                 try {
                     console.log(`Checking quality ${quality} for video ${videoId}...`);
-                    const response = await fetch(`${API_STREAMING}/videos/${videoId}/mp4?quality=${quality}`, {
+                    const response = await fetch(`${API_BASE}/videos/${videoId}/mp4?quality=${quality}`, {
                         method: 'GET',
                         redirect: 'manual' // Don't follow redirects
                     });
@@ -601,7 +590,7 @@ async function discoverMP4Qualities(videoId) {
                         console.log(`Found MP4 quality: ${quality}`);
                         availableQualities.push({
                             quality,
-                            url: `${API_STREAMING}/videos/${videoId}/mp4?quality=${quality}`
+                            url: `${API_BASE}/videos/${videoId}/mp4?quality=${quality}`
                         });
                     }
                 } catch (error) {
@@ -621,7 +610,7 @@ async function discoverMP4Qualities(videoId) {
         try {
             // Make a request to a special endpoint that lists available MP4 qualities
             // You would need to add this endpoint to your backend
-            const qualitiesResponse = await fetch(`${API_STREAMING}/videos/${videoId}/mp4/qualities`);
+            const qualitiesResponse = await fetch(`${API_BASE}/videos/${videoId}/mp4/qualities`);
 
             if (qualitiesResponse.ok) {
                 const qualitiesData = await qualitiesResponse.json();
@@ -631,7 +620,7 @@ async function discoverMP4Qualities(videoId) {
                     for (const quality of qualitiesData.qualities) {
                         availableQualities.push({
                             quality,
-                            url: `${API_STREAMING}/videos/${videoId}/mp4?quality=${quality}`
+                            url: `${API_BASE}/videos/${videoId}/mp4?quality=${quality}`
                         });
                     }
                 }
@@ -647,7 +636,7 @@ async function discoverMP4Qualities(videoId) {
             standardQualities.forEach(quality => {
                 availableQualities.push({
                     quality,
-                    url: `${API_STREAMING}/videos/${videoId}/mp4?quality=${quality}`
+                    url: `${API_BASE}/videos/${videoId}/mp4?quality=${quality}`
                 });
             });
         }
@@ -1051,9 +1040,9 @@ function changeMP4Quality(quality) {
 
     // Update the MP4 URL with the new quality
     if (quality === "default") {
-        preparedMP4Url = `${API_STREAMING}/videos/${currentVideoId}/mp4`;
+        preparedMP4Url = `${API_BASE}/videos/${currentVideoId}/mp4`;
     } else {
-        preparedMP4Url = `${API_STREAMING}/videos/${currentVideoId}/mp4?quality=${quality}`;
+        preparedMP4Url = `${API_BASE}/videos/${currentVideoId}/mp4?quality=${quality}`;
     }
 
     console.log(`Changing MP4 quality to ${quality}, new URL:`, preparedMP4Url);
@@ -1099,14 +1088,18 @@ function changeMP4Quality(quality) {
 
 // Add logging to thumbnail fetch
 async function loadThumbnail(videoId) {
-    const thumbnailUrl = `${API_STREAMING}/videos/${videoId}/thumbnail`;
+    // Add a timestamp parameter to force a fresh signed URL
+    const timestamp = new Date().getTime();
+    const thumbnailUrl = `${API_BASE}/videos/${videoId}/thumbnail?t=${timestamp}`;
     console.log(`Attempting to load thumbnail for video ${videoId} from: ${thumbnailUrl}`);
 
     try {
         // Make a fetch request to check if the thumbnail exists
         const response = await fetch(thumbnailUrl, {
             method: 'GET',
-            redirect: 'follow' // Allow redirects to final MinIO URL
+            redirect: 'follow', // Allow redirects to final MinIO URL
+            mode: 'cors',      // Explicitly request CORS mode
+            credentials: 'same-origin' // Include credentials if needed
         });
 
         console.log(`Thumbnail response status: ${response.status}`);
@@ -1115,13 +1108,22 @@ async function loadThumbnail(videoId) {
         }
 
         if (response.ok) {
-            return thumbnailUrl;
+            // Return the original API endpoint URL instead of the redirected MinIO URL
+            // This ensures we always get a fresh signed URL
+            return `${API_BASE}/videos/${videoId}/thumbnail?t=${timestamp}`;
         } else {
             console.error(`Failed to load thumbnail: ${response.statusText}`);
             return '/static/fallback-thumbnail.png';
         }
     } catch (error) {
         console.error(`Error loading thumbnail: ${error.message}`);
+        // If there's a CORS error, try a different approach
+        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            console.log('CORS error detected, trying alternative approach');
+            // Try to load the image directly by setting the src attribute
+            // This will bypass CORS for image loading
+            return `${API_BASE}/videos/${videoId}/thumbnail?t=${timestamp}`;
+        }
         return '/static/fallback-thumbnail.png';
     }
 }

@@ -98,7 +98,7 @@ func main() {
 	// Create Gin router
 	router := gin.Default()
 
-	// Create handlers
+	// Initialize handlers
 	minioStorageImpl, ok := minioStorage.(*storage.MinIOStorage)
 	if !ok {
 		log.Fatalf("Failed to cast storage to MinIOStorage")
@@ -122,8 +122,20 @@ func main() {
 	}
 	log.Printf("Initial health check passed")
 
-	// Register routes
-	router.GET("/health", healthHandler.HandleHealthCheck)
+	// Setup routes
+	api := router.Group("/api/v1/transcoder")
+	{
+		api.GET("/health", healthHandler.HandleHealthCheck)
+		// TODO: Add transcoder routes once handler is implemented
+		api.POST("/jobs", func(c *gin.Context) {
+			// TODO: Implement job creation handler
+			c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+		})
+		api.GET("/jobs/:id", func(c *gin.Context) {
+			// TODO: Implement job status handler
+			c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
+		})
+	}
 
 	// Create HTTP server
 	server := &http.Server{

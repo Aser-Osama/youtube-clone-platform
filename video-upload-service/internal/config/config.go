@@ -33,7 +33,7 @@ func Load() (*Config, error) {
 	_ = viper.ReadInConfig()
 
 	// Set default values (used if not found in .env)
-	viper.SetDefault("PORT", "8082")
+	viper.SetDefault("PORT", "8081")
 	viper.SetDefault("MAX_BYTES", 1024*1024*1024*5) // 1GB default max upload size
 	viper.SetDefault("MINIO_ENDPOINT", "localhost:9000")
 	viper.SetDefault("MINIO_ACCESS_KEY", "minioadmin")

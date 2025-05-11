@@ -23,13 +23,16 @@ func NewMetadataHandler(metadataService *service.MetadataService) *MetadataHandl
 
 // RegisterRoutes registers the HTTP routes for the metadata service
 func (h *MetadataHandler) RegisterRoutes(router *gin.Engine) {
-	api := router.Group("/api/v1")
+	api := router.Group("/api/v1/metadata")
 	{
 		api.GET("/videos/:id", h.GetVideoMetadata)
 		api.GET("/videos", h.GetRecentVideos)
 		api.POST("/videos/:id/views", h.IncrementViews)
 		api.GET("/videos/search", h.SearchVideos)
 		api.GET("/users/:id/videos", h.GetUserVideos)
+		api.GET("/health", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		})
 	}
 }
 

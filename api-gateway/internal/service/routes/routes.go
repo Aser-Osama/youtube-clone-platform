@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"strings"
 	"youtube-clone-platform/api-gateway/internal/config"
 	"youtube-clone-platform/api-gateway/internal/middleware"
 	"youtube-clone-platform/api-gateway/internal/service/health"
@@ -62,9 +63,11 @@ func (r *Router) Setup(jwtMiddleware *middleware.JWTMiddleware, rateLimiter *lim
 		c.Next()
 	})
 
-	// Setup all routes
+	// Setup API routes first
 	r.setupPublicRoutes(rateLimitMiddleware)
 	r.setupProtectedRoutes(jwtMiddleware, rateLimitMiddleware)
+
+	// Setup frontend routes last
 	r.setupFrontendRoutes()
 }
 
@@ -72,10 +75,6 @@ func (r *Router) Setup(jwtMiddleware *middleware.JWTMiddleware, rateLimiter *lim
 func (r *Router) setupPublicRoutes(rateLimitMiddleware *middleware.RateLimitMiddleware) {
 	public := r.engine.Group("/")
 	{
-		// Swagger documentation with proper configuration
-		swaggerConfig := ginSwagger.URL("/swagger/doc.json") // The URL points to API definition
-		public.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, swaggerConfig))
-
 		// Gateway health endpoints with rate limiting
 		public.GET("/health", rateLimitMiddleware.RateLimit(), r.healthChecker.HealthCheckHandler())
 		public.GET("/health/all", rateLimitMiddleware.RateLimit(), r.healthChecker.AllServicesHealthCheckHandler())
@@ -118,11 +117,56 @@ func (r *Router) setupProtectedRoutes(jwtMiddleware *middleware.JWTMiddleware, r
 
 // Setup frontend routes to serve the UI directly from the API Gateway
 func (r *Router) setupFrontendRoutes() {
-	// Serve static files directly from the API Gateway's static directory
-	r.engine.StaticFile("/", "./static/index.html")
+	// Initialize Swagger
+	swaggerConfig := ginSwagger.URL("/swagger/doc.json")
+	swaggerHandler := ginSwagger.WrapHandler(swaggerFiles.Handler, swaggerConfig)
+
+	// Handle /api to Swagger documentation redirect
+	r.engine.GET("/api", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/swagger/index.html")
+	})
+
+	// Handle /api/v1 to prevent unwanted redirects
+	r.engine.GET("/api/v1", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "API Gateway is running",
+			"version": "v1",
+		})
+	})
+
+	// Serve Swagger UI
+	r.engine.GET("/swagger/*any", swaggerHandler)
+
+	// Serve static files
+	r.engine.Static("/static", "./static")
 	r.engine.StaticFile("/app.js", "./static/app.js")
 	r.engine.StaticFile("/favicon.ico", "./static/favicon.ico")
-	r.engine.Static("/static", "./static")
+
+	// Serve index.html for root path
+	r.engine.GET("/", func(c *gin.Context) {
+		c.File("./static/index.html")
+	})
+
+	// Handle all other routes by serving index.html
+	r.engine.NoRoute(func(c *gin.Context) {
+		// Skip API routes
+		if strings.HasPrefix(c.Request.URL.Path, "/api/v1") {
+			c.Next()
+			return
+		}
+		// Skip Swagger routes
+		if strings.HasPrefix(c.Request.URL.Path, "/swagger") {
+			c.Next()
+			return
+		}
+		// Skip static file routes
+		if strings.HasPrefix(c.Request.URL.Path, "/static") {
+			c.Next()
+			return
+		}
+		// Serve index.html for all other routes
+		c.File("./static/index.html")
+	})
 }
 
 // Setup auth service public routes

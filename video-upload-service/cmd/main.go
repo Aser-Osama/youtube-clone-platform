@@ -54,11 +54,15 @@ func main() {
 	// Setup Gin router
 	router := gin.Default()
 
-	// Health check endpoint
-	router.GET("/health", healthHandler.HandleHealthCheck)
+	// API v1 routes
+	api := router.Group("/api/v1/upload")
+	{
+		// Health check endpoint
+		api.GET("/health", healthHandler.HandleHealthCheck)
 
-	// Register routes
-	router.POST("/upload", uploadHandler.HandleUpload)
+		// Upload endpoint
+		api.POST("/videos", uploadHandler.HandleUpload)
+	}
 
 	// Create HTTP server
 	srv := &http.Server{

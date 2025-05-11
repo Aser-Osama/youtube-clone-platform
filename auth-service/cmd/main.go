@@ -62,15 +62,18 @@ func main() {
 	r := gin.Default()
 
 	// Routes
-	r.GET("/auth/google/login", authHandler.GoogleLogin)
-	r.GET("/auth/google/callback", authHandler.GoogleCallback)
-	r.POST("/auth/logout", middleware.JWTAuth(), authHandler.Logout)
-	r.POST("/auth/refresh", authHandler.Refresh)
+	api := r.Group("/api/v1")
+	{
+		api.GET("/auth/google/login", authHandler.GoogleLogin)
+		api.GET("/auth/google/callback", authHandler.GoogleCallback)
+		api.POST("/auth/logout", middleware.JWTAuth(), authHandler.Logout)
+		api.POST("/auth/refresh", authHandler.Refresh)
 
-	// Health check
-	r.GET("/auth/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "time": time.Now()})
-	})
+		// Health check
+		api.GET("/auth/health", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{"status": "ok", "time": time.Now()})
+		})
+	}
 
 	// Create HTTP server
 	srv := &http.Server{

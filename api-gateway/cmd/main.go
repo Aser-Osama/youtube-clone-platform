@@ -9,8 +9,15 @@ import (
 
 	"youtube-clone-platform/api-gateway/internal/config"
 	"youtube-clone-platform/api-gateway/internal/service"
+
+	_ "youtube-clone-platform/api-gateway/docs"
 )
 
+// @title YouTube Clone Platform API Gateway
+// @version 1.0
+// @description API Gateway for YouTube Clone Platform
+// @host localhost:8085
+// @BasePath /api/v1
 func main() {
 	// Load configuration
 	cfg, err := config.LoadConfig()
@@ -23,6 +30,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create gateway service: %v", err)
 	}
+
+	// Add Swagger documentation
+	gateway.AddSwaggerDocs()
 
 	// Create context that listens for the interrupt signal
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

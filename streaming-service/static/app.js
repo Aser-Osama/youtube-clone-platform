@@ -21,8 +21,8 @@ const player = videojs('videoPlayer', {
 });
 
 // API endpoints
-const API_BASE = 'http://localhost:8090';  // Updated to match current streaming service port
-const METADATA_API = 'http://localhost:8081/api/v1'; // Updated to use port 8081
+const API_BASE = 'http://localhost:8090/api/v1/streaming';  // Updated to use API gateway with new path
+const METADATA_API = 'http://localhost:8081/api/v1/metadata'; // Updated to use API gateway with new path
 
 // DOM elements
 const videoList = document.getElementById('videoList');
@@ -127,7 +127,7 @@ function displayVideos(videos) {
     // First generate HTML for all videos
     const videoItems = videos.map(video => {
         // For now just use a fallback thumbnail, we'll load actual thumbnails after rendering
-        const fallbackThumbnail = '/static/fallback-thumbnail.png';
+        const fallbackThumbnail = '/api/v1/streaming/static/fallback-thumbnail.png';
 
         // Format duration
         const formattedDuration = formatDuration(video.duration || 0);
@@ -185,27 +185,24 @@ function displayVideos(videos) {
         try {
             const imgElement = document.querySelector(`.video-thumbnail img[data-video-id="${video.id}"]`);
             if (imgElement) {
-                // Test the thumbnail URL to see if it works
-                const thumbnailUrl = `${API_BASE}/videos/${video.id}/thumbnail`;
-                console.log(`Testing thumbnail URL for video ${video.id}: ${thumbnailUrl}`);
+                // Use the loadThumbnail function instead of direct fetch
+                const thumbnailUrl = await loadThumbnail(video.id);
+                console.log(`Thumbnail URL for video ${video.id}: ${thumbnailUrl}`);
 
-                const response = await fetch(thumbnailUrl, {
-                    method: 'HEAD',
-                    // Important: don't follow redirects so we can check response status
-                    redirect: 'manual'
-                });
+                // Set the thumbnail URL
+                imgElement.src = thumbnailUrl;
 
-                console.log(`Thumbnail response for ${video.id}:`, response.status, response.type);
-
-                // Success status or a redirect means the thumbnail URL is valid
-                if (response.ok || response.status === 302 || response.status === 307) {
-                    // Set the actual thumbnail URL
-                    console.log(`Setting thumbnail for video ${video.id}`);
-                    imgElement.src = thumbnailUrl;
-                } else {
-                    console.warn(`Thumbnail not available for video ${video.id}`);
-                    // Keep using the fallback
-                }
+                // Add error handling for the image
+                imgElement.onerror = async function () {
+                    console.warn(`Failed to load thumbnail for ${video.id}, retrying...`);
+                    // Wait a bit before retrying
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    // Try again with a fresh timestamp
+                    const retryUrl = await loadThumbnail(video.id);
+                    if (retryUrl !== '/api/v1/streaming/static/fallback-thumbnail.png') {
+                        this.src = retryUrl;
+                    }
+                };
             }
         } catch (error) {
             console.error(`Error loading thumbnail for video ${video.id}:`, error);
@@ -1091,14 +1088,18 @@ function changeMP4Quality(quality) {
 
 // Add logging to thumbnail fetch
 async function loadThumbnail(videoId) {
-    const thumbnailUrl = `${API_BASE}/videos/${videoId}/thumbnail`;
+    // Add a timestamp parameter to force a fresh signed URL
+    const timestamp = new Date().getTime();
+    const thumbnailUrl = `${API_BASE}/videos/${videoId}/thumbnail?t=${timestamp}`;
     console.log(`Attempting to load thumbnail for video ${videoId} from: ${thumbnailUrl}`);
 
     try {
         // Make a fetch request to check if the thumbnail exists
         const response = await fetch(thumbnailUrl, {
             method: 'GET',
-            redirect: 'follow' // Allow redirects to final MinIO URL
+            redirect: 'follow', // Allow redirects to final MinIO URL
+            mode: 'cors',      // Explicitly request CORS mode
+            credentials: 'same-origin' // Include credentials if needed
         });
 
         console.log(`Thumbnail response status: ${response.status}`);
@@ -1107,14 +1108,23 @@ async function loadThumbnail(videoId) {
         }
 
         if (response.ok) {
-            return thumbnailUrl;
+            // Return the original API endpoint URL instead of the redirected MinIO URL
+            // This ensures we always get a fresh signed URL
+            return `${API_BASE}/videos/${videoId}/thumbnail?t=${timestamp}`;
         } else {
             console.error(`Failed to load thumbnail: ${response.statusText}`);
-            return '/static/fallback-thumbnail.png';
+            return '/api/v1/streaming/static/fallback-thumbnail.png';
         }
     } catch (error) {
         console.error(`Error loading thumbnail: ${error.message}`);
-        return '/static/fallback-thumbnail.png';
+        // If there's a CORS error, try a different approach
+        if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+            console.log('CORS error detected, trying alternative approach');
+            // Try to load the image directly by setting the src attribute
+            // This will bypass CORS for image loading
+            return `${API_BASE}/videos/${videoId}/thumbnail?t=${timestamp}`;
+        }
+        return '/api/v1/streaming/static/fallback-thumbnail.png';
     }
 }
 
