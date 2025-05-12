@@ -12,5 +12,5 @@ jwt:
   public_key_path: "keys/public.pem"
 
 rate_limit:
-  requests: 100
-  period: "1m"
+  requests: 5 # Reduced from 10 to 5 to make testing easier
+  period: "5s" # Changed from 10s to 5s to make testing faster

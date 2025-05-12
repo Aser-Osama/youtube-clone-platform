@@ -62,11 +62,11 @@ func configureMetadataRoutes(router *RouterConfig, baseURL string) {
 	// Health check
 	metadata.AddEndpoint("GET", "/health", "Health check endpoint", boolPtr(false))
 
-	// Public video metadata endpoints
+	// All metadata endpoints are public
 	metadata.AddEndpoint("GET", "/public/videos", "List public videos", boolPtr(false))
 	metadata.AddEndpoint("GET", "/public/videos/:videoID", "Get public video details", boolPtr(false))
 
-	// Protected video metadata endpoints - using videoID consistently
+	// Using videoID consistently and making all endpoints public
 	metadata.AddEndpoint("GET", "/videos", "List user's videos", boolPtr(false))
 	metadata.AddEndpoint("GET", "/videos/:videoID", "Get video details", boolPtr(false))
 	metadata.AddEndpoint("POST", "/videos", "Create new video metadata", boolPtr(false))

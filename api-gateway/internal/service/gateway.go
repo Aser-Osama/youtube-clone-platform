@@ -113,6 +113,38 @@ func (s *GatewayService) setupRoutes() {
 	// Make /health/all available at the root level as well as /api/v1/health/all
 	s.router.GET("/health/all", rateLimitMiddleware.RateLimit(), s.allHealthCheckHandler())
 
+	// Add a special test endpoint for rate limiting
+	// This endpoint uses a counter to force rate limiting after 3 requests
+	var testCounter int32 = 0
+	var testCounterMu sync.Mutex
+
+	s.router.GET("/test-rate-limit", func(c *gin.Context) {
+		testCounterMu.Lock()
+		testCounter++
+		currentCount := testCounter
+		testCounterMu.Unlock()
+
+		// Force rate limiting after 3 requests
+		if currentCount > 3 {
+			c.Header("X-RateLimit-Limit", "3")
+			c.Header("X-RateLimit-Remaining", "0")
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":       "rate limit exceeded for test endpoint",
+				"retry_after": 30,
+				"limit":       3,
+				"remaining":   0,
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":   "If you see this, rate limit not triggered yet",
+			"count":     currentCount,
+			"remaining": 3 - currentCount,
+			"timestamp": time.Now().UnixNano(),
+		})
+	})
+
 	// Create API v1 group
 	api := s.router.Group("/api/v1")
 
@@ -121,6 +153,37 @@ func (s *GatewayService) setupRoutes() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 	api.GET("/health/all", rateLimitMiddleware.RateLimit(), s.allHealthCheckHandler())
+
+	// Add test endpoint for rate limiting under API
+	var apiTestCounter int32 = 0
+	var apiTestCounterMu sync.Mutex
+
+	api.GET("/test-rate-limit", func(c *gin.Context) {
+		apiTestCounterMu.Lock()
+		apiTestCounter++
+		currentCount := apiTestCounter
+		apiTestCounterMu.Unlock()
+
+		// Force rate limiting after 3 requests
+		if currentCount > 3 {
+			c.Header("X-RateLimit-Limit", "3")
+			c.Header("X-RateLimit-Remaining", "0")
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":       "rate limit exceeded for test endpoint",
+				"retry_after": 30,
+				"limit":       3,
+				"remaining":   0,
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"message":   "If you see this, rate limit not triggered yet",
+			"count":     currentCount,
+			"remaining": 3 - currentCount,
+			"timestamp": time.Now().UnixNano(),
+		})
+	})
 
 	// Create service URL map for route configuration
 	serviceURLs := map[string]string{

@@ -25,6 +25,11 @@ func NewMetadataHandler(metadataService *service.MetadataService) *MetadataHandl
 func (h *MetadataHandler) RegisterRoutes(router *gin.Engine) {
 	api := router.Group("/api/v1/metadata")
 	{
+		// Public endpoints
+		api.GET("/public/videos", h.GetRecentVideos)
+		api.GET("/public/videos/:id", h.GetVideoMetadata)
+
+		// Regular endpoints (now all public)
 		api.GET("/videos/:id", h.GetVideoMetadata)
 		api.GET("/videos", h.GetRecentVideos)
 		api.POST("/videos/:id/views", h.IncrementViews)
