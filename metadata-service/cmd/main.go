@@ -49,6 +49,19 @@ func main() {
 	}
 	defer transcodingConsumer.Close()
 
+	// Initialize view event consumer if configured
+	var viewConsumer *kafka.Reader
+	if cfg.ViewTopic != "" && len(cfg.KafkaBrokers) > 0 {
+		viewConsumer, err = initKafkaConsumer(cfg.KafkaBrokers, cfg.ViewTopic, cfg.ViewGroupID)
+		if err != nil {
+			log.Fatalf("Failed to initialize view event Kafka consumer: %v", err)
+		}
+		defer viewConsumer.Close()
+		log.Printf("View event consumer initialized for topic: %s", cfg.ViewTopic)
+	} else {
+		log.Printf("View event consumer not configured, view counting will be disabled")
+	}
+
 	// Initialize MinIO client
 	minioClient, err := initMinioClient(cfg.MinIO)
 	if err != nil {
@@ -91,6 +104,16 @@ func main() {
 			log.Printf("Transcoding complete Kafka consumer error: %v", err)
 		}
 	}()
+
+	// Start view event consumer if initialized
+	if viewConsumer != nil {
+		go func() {
+			if err := kafkautil.StartViewConsumer(consumerCtx, viewConsumer, metadataService); err != nil && err != context.Canceled {
+				log.Printf("View event Kafka consumer error: %v", err)
+			}
+		}()
+		log.Printf("View event consumer started")
+	}
 
 	// Create HTTP server
 	port := cfg.ServerPort

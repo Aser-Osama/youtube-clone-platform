@@ -30,14 +30,13 @@ CREATE TABLE IF NOT EXISTS videos (
     tags TEXT
 );
 
-CREATE TABLE IF NOT EXISTS video_views (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    video_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    viewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (video_id) REFERENCES videos(id),
-    UNIQUE(video_id, user_id)
-);
+ CREATE TABLE IF NOT EXISTS video_views (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      video_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      viewed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (video_id) REFERENCES videos(id)
+  );
 
 CREATE INDEX IF NOT EXISTS idx_videos_user_id ON videos(user_id);
 CREATE INDEX IF NOT EXISTS idx_videos_created_at ON videos(created_at);

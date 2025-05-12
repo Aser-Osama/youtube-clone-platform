@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"youtube-clone-platform/streaming-service/internal/config"
+	"youtube-clone-platform/streaming-service/internal/events"
 	"youtube-clone-platform/streaming-service/internal/handler"
 	"youtube-clone-platform/streaming-service/internal/storage"
 
@@ -45,6 +46,16 @@ func main() {
 		log.Fatalf("MinIO health check failed: %v", err)
 	}
 
+	// Initialize Kafka view event producer if Kafka is configured
+	var viewProducer events.Producer
+	if len(cfg.Kafka.Brokers) > 0 && cfg.Kafka.ViewTopic != "" {
+		log.Printf("Initializing Kafka view event producer with brokers %v and topic %s",
+			cfg.Kafka.Brokers, cfg.Kafka.ViewTopic)
+		viewProducer = events.NewKafkaProducer(cfg.Kafka.Brokers, cfg.Kafka.ViewTopic)
+	} else {
+		log.Printf("Kafka view event producer not configured, view counting will be disabled")
+	}
+
 	// Create Gin router
 	router := gin.Default()
 
@@ -52,14 +63,14 @@ func main() {
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-User-ID"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
 
 	// Create handlers
-	streamHandler := handler.NewStreamHandler(minioStorage)
+	streamHandler := handler.NewStreamHandler(minioStorage, viewProducer)
 	healthHandler := handler.NewHealthHandler(minioStorage)
 
 	// Serve static files at root level
@@ -79,6 +90,7 @@ func main() {
 		api.GET("/videos/:videoID/mp4", streamHandler.HandleMP4)
 		api.GET("/videos/:videoID/mp4/qualities", streamHandler.ListMP4Qualities)
 		api.GET("/videos/:videoID/thumbnail", streamHandler.HandleThumbnail)
+		api.POST("/videos/:videoID/views", streamHandler.HandleRecordView) // Add view counting endpoint
 
 		// Also serve static files under /api/v1/streaming
 		api.Static("/static", "./static")
@@ -124,6 +136,13 @@ func main() {
 	// Stop the server
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Printf("Error shutting down server: %v", err)
+	}
+
+	// Close the Kafka producer if it was initialized
+	if viewProducer != nil {
+		if err := viewProducer.Close(); err != nil {
+			log.Printf("Error closing Kafka producer: %v", err)
+		}
 	}
 
 	log.Printf("Streaming service stopped")

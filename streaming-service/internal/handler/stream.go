@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path"
 
+	"youtube-clone-platform/streaming-service/internal/events"
 	"youtube-clone-platform/streaming-service/internal/storage"
 
 	"github.com/gin-gonic/gin"
@@ -12,13 +13,15 @@ import (
 
 // StreamHandler handles video streaming requests
 type StreamHandler struct {
-	storage storage.Storage
+	storage      storage.Storage
+	viewProducer events.Producer
 }
 
 // NewStreamHandler creates a new stream handler
-func NewStreamHandler(storage storage.Storage) *StreamHandler {
+func NewStreamHandler(storage storage.Storage, viewProducer events.Producer) *StreamHandler {
 	return &StreamHandler{
-		storage: storage,
+		storage:      storage,
+		viewProducer: viewProducer,
 	}
 }
 
@@ -222,4 +225,36 @@ func (h *StreamHandler) ListMP4Qualities(c *gin.Context) {
 		"video_id":  videoID,
 		"qualities": availableQualities,
 	})
+}
+
+// HandleRecordView handles requests to record a video view
+func (h *StreamHandler) HandleRecordView(c *gin.Context) {
+	videoID := c.Param("videoID")
+	if videoID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "video ID is required"})
+		return
+	}
+
+	// Get user ID from header
+	userID := c.GetHeader("X-User-ID")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user ID is required"})
+		return
+	}
+
+	// Create view event
+	event := events.ViewEvent{
+		VideoID: videoID,
+		UserID:  userID,
+	}
+
+	// Publish view event if producer is available
+	if h.viewProducer != nil {
+		if err := h.viewProducer.PublishViewEvent(c.Request.Context(), event); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to record view"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "view recorded successfully"})
 }

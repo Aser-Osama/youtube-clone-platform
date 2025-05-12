@@ -201,28 +201,17 @@ func (s *MetadataService) UpdateVideoStatus(ctx context.Context, id string, stat
 
 // IncrementViews increments the view count for a video
 func (s *MetadataService) IncrementViews(ctx context.Context, videoID, userID string) error {
-	// Check if user has already viewed the video
-	count, err := s.store.CheckVideoView(ctx, sqlc.CheckVideoViewParams{
+	// Create view record
+	if err := s.store.CreateVideoView(ctx, sqlc.CreateVideoViewParams{
 		VideoID: videoID,
 		UserID:  userID,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to check existing view: %w", err)
+	}); err != nil {
+		return fmt.Errorf("failed to create view record: %w", err)
 	}
 
-	if count == 0 {
-		// Create view record
-		if err := s.store.CreateVideoView(ctx, sqlc.CreateVideoViewParams{
-			VideoID: videoID,
-			UserID:  userID,
-		}); err != nil {
-			return fmt.Errorf("failed to create view record: %w", err)
-		}
-
-		// Increment view count
-		if err := s.store.IncrementViews(ctx, videoID); err != nil {
-			return fmt.Errorf("failed to increment view count: %w", err)
-		}
+	// Increment view count
+	if err := s.store.IncrementViews(ctx, videoID); err != nil {
+		return fmt.Errorf("failed to increment view count: %w", err)
 	}
 
 	return nil

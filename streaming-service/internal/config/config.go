@@ -10,6 +10,7 @@ type Config struct {
 	ServerPort string
 	MinIO      MinIOConfig
 	Logging    LoggingConfig
+	Kafka      KafkaConfig
 }
 
 type MinIOConfig struct {
@@ -26,6 +27,11 @@ type MinIOConfig struct {
 
 type LoggingConfig struct {
 	Level string
+}
+
+type KafkaConfig struct {
+	Brokers   []string
+	ViewTopic string
 }
 
 func LoadConfig() (*Config, error) {
@@ -53,6 +59,10 @@ func LoadConfig() (*Config, error) {
 		},
 		Logging: LoggingConfig{
 			Level: viper.GetString("LOG_LEVEL"),
+		},
+		Kafka: KafkaConfig{
+			Brokers:   viper.GetStringSlice("KAFKA_BROKERS"),
+			ViewTopic: viper.GetString("KAFKA_VIEW_TOPIC"),
 		},
 	}, nil
 }

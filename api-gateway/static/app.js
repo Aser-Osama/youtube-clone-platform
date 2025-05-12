@@ -274,6 +274,9 @@ function selectVideo(videoId, videoData) {
     } else if (radioMP4.checked) {
         prepareMP4();
     }
+
+    // Record video view
+    recordVideoView(videoId);
 }
 
 // Update video info panel with the selected video's details
@@ -291,6 +294,11 @@ function updateVideoInfoPanel() {
     selectedVideoDescription.textContent = selectedVideoData.description || 'No description available.';
     selectedVideoDuration.textContent = selectedVideoData.formattedDuration || '0:00';
     selectedVideoId.textContent = currentVideoId || '--';
+
+    // Update view count if available, otherwise show 0
+    const viewCount = selectedVideoData.views && selectedVideoData.views.Valid ?
+        selectedVideoData.views.Int64 : 0;
+    document.getElementById('selectedVideoViews').textContent = viewCount;
 
     // Resolution will be updated when playing starts
     selectedVideoResolution.textContent = 'Available after playback';
@@ -1126,6 +1134,37 @@ async function loadThumbnail(videoId) {
         }
         return '/static/fallback-thumbnail.png';
     }
+}
+
+// Send view event to record a video view
+async function recordVideoView(videoId) {
+    if (!videoId) return;
+
+    try {
+        console.log(`Recording view for video ${videoId}`);
+        const response = await fetch(`${API_BASE}/videos/${videoId}/views`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                // Pass user ID if available from session/auth
+                'X-User-ID': getUserIdFromSession() || 'guest'
+            }
+        });
+
+        if (response.ok) {
+            console.log(`Successfully recorded view for video ${videoId}`);
+        } else {
+            console.warn(`Failed to record view for video ${videoId}: ${response.status} ${response.statusText}`);
+        }
+    } catch (error) {
+        console.error(`Error recording view for video ${videoId}:`, error);
+    }
+}
+
+// Helper function to get user ID from session or localStorage
+function getUserIdFromSession() {
+    // Try to get user ID from localStorage or other session storage
+    return localStorage.getItem('userId') || null;
 }
 
 // Event listeners

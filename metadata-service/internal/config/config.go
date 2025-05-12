@@ -13,6 +13,8 @@ type Config struct {
 	KafkaGroupID       string
 	TranscodingTopic   string
 	TranscodingGroupID string
+	ViewTopic          string
+	ViewGroupID        string
 	MinIO              MinIOConfig
 	ServerPort         string
 }
@@ -42,6 +44,8 @@ func LoadConfig() (*Config, error) {
 		KafkaGroupID:       viper.GetString("KAFKA_GROUP_ID"),
 		TranscodingTopic:   viper.GetString("KAFKA_TOPICS_TRANSCODING_COMPLETE"),
 		TranscodingGroupID: viper.GetString("KAFKA_TRANSCODING_GROUP_ID"),
+		ViewTopic:          viper.GetString("KAFKA_TOPICS_VIDEO_VIEW"),
+		ViewGroupID:        viper.GetString("KAFKA_VIEW_GROUP_ID"),
 		MinIO: MinIOConfig{
 			Endpoint:  viper.GetString("MINIO_ENDPOINT"),
 			AccessKey: viper.GetString("MINIO_ACCESS_KEY"),
