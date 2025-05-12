@@ -4,8 +4,9 @@ server:
 services:
   auth: "http://localhost:8080"
   metadata: "http://localhost:8082"
-  streaming: "http://localhost:8083"
-  upload: "http://localhost:8084"
+  streaming: "http://localhost:8090"
+  upload: "http://localhost:8081"
+  transcoder: "http://localhost:8083"
 
 jwt:
   public_key_path: "keys/public.pem"

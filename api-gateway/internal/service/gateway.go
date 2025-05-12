@@ -7,18 +7,16 @@ import (
 	"encoding/pem"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
-	"strings"
 	"sync"
 	"time"
 
 	"youtube-clone-platform/api-gateway/internal/config"
 	"youtube-clone-platform/api-gateway/internal/middleware"
+	"youtube-clone-platform/api-gateway/internal/service/proxy"
+	"youtube-clone-platform/api-gateway/internal/service/route"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/sony/gobreaker"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -27,12 +25,13 @@ import (
 )
 
 type GatewayService struct {
-	config      *config.Config
-	router      *gin.Engine
-	breaker     *gobreaker.CircuitBreaker
-	rateLimiter *limiter.Limiter
-	publicKey   *rsa.PublicKey
-	mu          sync.RWMutex
+	config       *config.Config
+	router       *gin.Engine
+	breaker      *gobreaker.CircuitBreaker
+	rateLimiter  *limiter.Limiter
+	publicKey    *rsa.PublicKey
+	proxyHandler *proxy.ProxyHandler
+	mu           sync.RWMutex
 }
 
 func NewGatewayService(cfg *config.Config) (*GatewayService, error) {
@@ -61,11 +60,12 @@ func NewGatewayService(cfg *config.Config) (*GatewayService, error) {
 	}
 
 	return &GatewayService{
-		config:      cfg,
-		router:      gin.Default(),
-		breaker:     breaker,
-		rateLimiter: rateLimiter,
-		publicKey:   publicKey,
+		config:       cfg,
+		router:       gin.Default(),
+		breaker:      breaker,
+		rateLimiter:  rateLimiter,
+		publicKey:    publicKey,
+		proxyHandler: proxy.NewProxyHandler(),
 	}, nil
 }
 
@@ -110,226 +110,85 @@ func (s *GatewayService) setupRoutes() {
 	s.router.GET("/health", rateLimitMiddleware.RateLimit(), func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+	// Make /health/all available at the root level as well as /api/v1/health/all
+	s.router.GET("/health/all", rateLimitMiddleware.RateLimit(), s.allHealthCheckHandler())
 
-	// Streaming service routes
-	s.router.GET("/streaming/*path", s.proxyRequest(s.config.Services.Streaming))
-
-	// Metadata service routes
-	s.router.GET("/metadata/*path", s.proxyRequest(s.config.Services.Metadata))
-
-	// API v1 routes
+	// Create API v1 group
 	api := s.router.Group("/api/v1")
-	{
-		// Health endpoints with rate limiting
-		api.GET("/health", rateLimitMiddleware.RateLimit(), func(c *gin.Context) {
-			c.JSON(http.StatusOK, gin.H{"status": "ok"})
-		})
 
-		api.GET("/health/all", rateLimitMiddleware.RateLimit(), func(c *gin.Context) {
-			// Check all services health
-			services := map[string]string{
-				"auth":      s.config.Services.Auth,
-				"metadata":  s.config.Services.Metadata,
-				"streaming": s.config.Services.Streaming,
-				"upload":    s.config.Services.Upload,
-			}
+	// Add health endpoints to API group
+	api.GET("/health", rateLimitMiddleware.RateLimit(), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+	api.GET("/health/all", rateLimitMiddleware.RateLimit(), s.allHealthCheckHandler())
 
-			results := make(map[string]string)
-			for name, url := range services {
-				resp, err := http.Get(url + "/api/v1/health")
+	// Create service URL map for route configuration
+	serviceURLs := map[string]string{
+		"auth":       s.config.Services.Auth,
+		"metadata":   s.config.Services.Metadata,
+		"streaming":  s.config.Services.Streaming,
+		"upload":     s.config.Services.Upload,
+		"transcoder": s.config.Services.Transcoder,
+	}
+
+	// Create router configuration
+	routerConfig := route.ConfigureRoutes(serviceURLs)
+
+	// Register all routes using our configuration
+	routerConfig.RegisterHandlers(
+		s.router,
+		api,
+		jwtMiddleware.VerifyJWT(),
+		rateLimitMiddleware.RateLimit(),
+		s.proxyHandler.ProxyRequest,
+	)
+}
+
+// allHealthCheckHandler handles requests to check the health of all services
+func (s *GatewayService) allHealthCheckHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Check all services health
+		servicesConfig := map[string]string{
+			"auth":       s.config.Services.Auth,
+			"metadata":   s.config.Services.Metadata,
+			"streaming":  s.config.Services.Streaming,
+			"upload":     s.config.Services.Upload,
+			"transcoder": s.config.Services.Transcoder,
+		}
+
+		results := make(map[string]string)
+		var wg sync.WaitGroup
+		var mu sync.Mutex
+
+		for name, baseURL := range servicesConfig {
+			wg.Add(1)
+			go func(name string, baseURL string) {
+				defer wg.Done()
+				// Construct health path, e.g., http://localhost:8080/api/v1/auth/health
+				healthPath := baseURL + "/api/v1/" + name + "/health"
+
+				resp, err := http.Get(healthPath)
+				mu.Lock()
 				if err != nil {
-					results[name] = "unhealthy"
-					continue
-				}
-				if resp.StatusCode == http.StatusOK {
-					results[name] = "healthy"
+					results[name] = "unhealthy - " + err.Error()
 				} else {
-					results[name] = "unhealthy"
+					if resp.StatusCode == http.StatusOK {
+						results[name] = "healthy"
+					} else {
+						results[name] = fmt.Sprintf("unhealthy - status %d", resp.StatusCode)
+					}
+					resp.Body.Close()
 				}
-				resp.Body.Close()
-			}
+				mu.Unlock()
+			}(name, baseURL)
+		}
 
-			c.JSON(http.StatusOK, gin.H{
-				"gateway":  "healthy",
-				"services": results,
-			})
+		wg.Wait()
+
+		c.JSON(http.StatusOK, gin.H{
+			"gateway":  "healthy",
+			"services": results,
 		})
-
-		// Auth service routes
-		auth := api.Group("/auth")
-		{
-			// Public auth endpoints
-			auth.GET("/google/login", s.authReverseProxy())
-			auth.GET("/google/callback", s.authReverseProxy())
-			auth.GET("/health", s.authReverseProxy())
-
-			// Protected auth endpoints
-			protectedAuth := auth.Group("")
-			protectedAuth.Use(jwtMiddleware.VerifyJWT())
-			{
-				protectedAuth.POST("/refresh", s.authReverseProxy())
-				protectedAuth.POST("/logout", s.authReverseProxy())
-			}
-		}
-
-		// Streaming service routes
-		streaming := api.Group("/streaming")
-		streaming.Use(rateLimitMiddleware.RateLimit())
-		{
-			streaming.GET("/videos/:id", s.proxyRequest(s.config.Services.Streaming))
-		}
-
-		// Upload service routes
-		upload := api.Group("/upload")
-		upload.Use(rateLimitMiddleware.RateLimit())
-		{
-			upload.POST("/videos", s.proxyRequest(s.config.Services.Upload))
-		}
-
-		// Metadata service routes
-		metadata := api.Group("/metadata")
-		metadata.Use(rateLimitMiddleware.RateLimit(), jwtMiddleware.VerifyJWT())
-		{
-			metadata.GET("/videos", s.proxyRequest(s.config.Services.Metadata))
-			metadata.GET("/videos/:id", s.proxyRequest(s.config.Services.Metadata))
-		}
-	}
-}
-
-func (s *GatewayService) proxyRequest(targetURL string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		target, err := url.Parse(targetURL)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "invalid target URL"})
-			return
-		}
-
-		proxy := httputil.NewSingleHostReverseProxy(target)
-
-		// Customize the proxy's director to modify the request
-		originalDirector := proxy.Director
-		proxy.Director = func(req *http.Request) {
-			originalDirector(req)
-
-			// Debug logging
-			fmt.Printf("Proxying request to %s: %s %s\n", targetURL, req.Method, req.URL.Path)
-
-			// Add any necessary headers
-			req.Header.Set("X-Forwarded-Host", req.Host)
-			req.Header.Set("X-Forwarded-Proto", "http")
-
-			// Preserve the original method
-			req.Method = c.Request.Method
-
-			// Copy all headers from the original request
-			for key, values := range c.Request.Header {
-				for _, value := range values {
-					req.Header.Add(key, value)
-				}
-			}
-
-			// Modify the path to include /api/v1 prefix
-			req.URL.Path = "/api/v1" + req.URL.Path
-		}
-
-		// Add error handling
-		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-			fmt.Printf("Proxy error for %s: %v\n", targetURL, err)
-			w.WriteHeader(http.StatusBadGateway)
-			w.Write([]byte(fmt.Sprintf("Proxy error: %v", err)))
-		}
-
-		// Add response modifier
-		proxy.ModifyResponse = func(resp *http.Response) error {
-			fmt.Printf("Received response from %s: %d\n", targetURL, resp.StatusCode)
-			return nil
-		}
-
-		proxy.ServeHTTP(c.Writer, c.Request)
-	}
-}
-
-func (s *GatewayService) authReverseProxy() gin.HandlerFunc {
-	target, _ := url.Parse(s.config.Services.Auth)
-	proxy := httputil.NewSingleHostReverseProxy(target)
-
-	// Customize the proxy's director to modify the request
-	originalDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		originalDirector(req)
-
-		// Debug logging
-		fmt.Printf("Proxying request to auth service: %s %s\n", req.Method, req.URL.Path)
-
-		// Add any necessary headers
-		req.Header.Set("X-Forwarded-Host", req.Host)
-		req.Header.Set("X-Forwarded-Proto", "http")
-
-		// Preserve the original method
-		req.Method = req.Method
-
-		// Copy all headers from the original request
-		for key, values := range req.Header {
-			for _, value := range values {
-				req.Header.Add(key, value)
-			}
-		}
-
-		// Modify the path to include /api/v1 prefix
-		req.URL.Path = "/api/v1" + req.URL.Path
-	}
-
-	// Add error handling
-	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		fmt.Printf("Auth proxy error: %v\n", err)
-		w.WriteHeader(http.StatusBadGateway)
-		w.Write([]byte(fmt.Sprintf("Proxy error: %v", err)))
-	}
-
-	// Add response modifier
-	proxy.ModifyResponse = func(resp *http.Response) error {
-		fmt.Printf("Received response from auth service: %d\n", resp.StatusCode)
-		return nil
-	}
-
-	return func(c *gin.Context) {
-		// Debug logging
-		fmt.Printf("Received request: %s %s\n", c.Request.Method, c.Request.URL.Path)
-
-		// For protected endpoints, verify JWT first
-		if strings.HasSuffix(c.Request.URL.Path, "/refresh") || strings.HasSuffix(c.Request.URL.Path, "/logout") {
-			authHeader := c.GetHeader("Authorization")
-			if authHeader == "" {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "authorization header is required"})
-				return
-			}
-
-			parts := strings.Split(authHeader, " ")
-			if len(parts) != 2 || parts[0] != "Bearer" {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
-				return
-			}
-
-			tokenString := parts[1]
-			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-				if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-				}
-				return s.publicKey, nil
-			})
-
-			if err != nil {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
-				return
-			}
-
-			if !token.Valid {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
-				return
-			}
-		}
-
-		proxy.ServeHTTP(c.Writer, c.Request)
 	}
 }
 

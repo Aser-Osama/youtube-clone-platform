@@ -185,14 +185,32 @@ func (r *Router) setupAuthProtectedRoutes(group *gin.RouterGroup) {
 // Setup streaming service public routes
 func (r *Router) setupStreamingPublicRoutes(group *gin.RouterGroup, rateLimitMiddleware *middleware.RateLimitMiddleware) {
 	group.Use(rateLimitMiddleware.RateLimit())
-	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Streaming, "/health", true))
-	group.GET("/videos/:id", r.proxy.ProxyRequest(r.config.Services.Streaming, "/videos/:id", true))
+	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Streaming, "/api/v1/streaming/health", true))
+
+	// Basic video streaming endpoints (using :videoID parameter to match streaming service)
+	group.GET("/videos/:videoID", r.proxy.ProxyRequest(r.config.Services.Streaming, "/api/v1/streaming/videos/:videoID", true))
+	group.GET("/thumbnails/:videoID", r.proxy.ProxyRequest(r.config.Services.Streaming, "/api/v1/streaming/thumbnails/:videoID", true))
+
+	// Thumbnail endpoint specifically for video thumbnails
+	group.GET("/videos/:videoID/thumbnail", r.proxy.ProxyRequest(r.config.Services.Streaming, "/api/v1/streaming/videos/:videoID/thumbnail", true))
+
+	// HLS streaming endpoints
+	group.GET("/videos/:videoID/hls/manifest", r.proxy.ProxyRequest(r.config.Services.Streaming, "/api/v1/streaming/videos/:videoID/hls/manifest", true))
+	group.GET("/videos/:videoID/hls/:resolution/playlist", r.proxy.ProxyRequest(r.config.Services.Streaming, "/api/v1/streaming/videos/:videoID/hls/:resolution/playlist", true))
+	group.GET("/videos/:videoID/hls/:resolution/:segment", r.proxy.ProxyRequest(r.config.Services.Streaming, "/api/v1/streaming/videos/:videoID/hls/:resolution/:segment", true))
+	group.GET("/videos/:videoID/hls/segments/:segment", r.proxy.ProxyRequest(r.config.Services.Streaming, "/api/v1/streaming/videos/:videoID/hls/segments/:segment", true))
+
+	// MP4 streaming endpoints
+	group.GET("/videos/:videoID/mp4", r.proxy.ProxyRequest(r.config.Services.Streaming, "/api/v1/streaming/videos/:videoID/mp4", true))
+	group.GET("/videos/:videoID/mp4/qualities", r.proxy.ProxyRequest(r.config.Services.Streaming, "/api/v1/streaming/videos/:videoID/mp4/qualities", true))
 }
 
 // Setup metadata service public routes
 func (r *Router) setupMetadataPublicRoutes(group *gin.RouterGroup, rateLimitMiddleware *middleware.RateLimitMiddleware) {
 	group.Use(rateLimitMiddleware.RateLimit())
-	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Metadata, "/health", true))
+	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Metadata, "/api/v1/metadata/health", true))
+	group.GET("/public/videos", r.proxy.ProxyRequest(r.config.Services.Metadata, "/api/v1/metadata/public/videos", true))
+	group.GET("/public/videos/:id", r.proxy.ProxyRequest(r.config.Services.Metadata, "/api/v1/metadata/public/videos/:id", true))
 }
 
 // Setup metadata service protected routes
@@ -208,7 +226,7 @@ func (r *Router) setupMetadataProtectedRoutes(group *gin.RouterGroup, rateLimitM
 // Setup upload service public routes
 func (r *Router) setupUploadPublicRoutes(group *gin.RouterGroup, rateLimitMiddleware *middleware.RateLimitMiddleware) {
 	group.Use(rateLimitMiddleware.RateLimit())
-	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Upload, "/health", true))
+	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Upload, "/api/v1/upload/health", true))
 }
 
 // Setup upload service protected routes
@@ -221,7 +239,8 @@ func (r *Router) setupUploadProtectedRoutes(group *gin.RouterGroup, rateLimitMid
 // Setup transcoder service public routes
 func (r *Router) setupTranscoderPublicRoutes(group *gin.RouterGroup, rateLimitMiddleware *middleware.RateLimitMiddleware) {
 	group.Use(rateLimitMiddleware.RateLimit())
-	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Transcoder, "/health", true))
+	group.GET("/health", r.proxy.ProxyRequest(r.config.Services.Transcoder, "/api/v1/transcoder/health", true))
+	group.GET("/status", r.proxy.ProxyRequest(r.config.Services.Transcoder, "/api/v1/transcoder/status", true))
 }
 
 // Setup transcoder service protected routes

@@ -17,7 +17,8 @@ import (
 // @version 1.0
 // @description API Gateway for YouTube Clone Platform
 // @host localhost:8085
-// @BasePath /api/v1
+// @BasePath /
+// @securityDefinitions.apikey BearerAuth
 func main() {
 	// Load configuration
 	cfg, err := config.LoadConfig()
