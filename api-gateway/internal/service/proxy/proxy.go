@@ -29,46 +29,42 @@ func (p *ReverseProxy) ProxyRequest(targetURL, path string, preservePath bool) g
 
 		proxy := httputil.NewSingleHostReverseProxy(target)
 
-		// Customize the proxy's director to modify the request
+		 // Keep the original director
 		originalDirector := proxy.Director
+
+		// Replace the director to customize the request
 		proxy.Director = func(req *http.Request) {
+			// Call original director to set up basic URL properties
 			originalDirector(req)
 
-			// Debug logging
-			fmt.Printf("Proxying request to %s: %s %s\n", targetURL, req.Method, req.URL.Path)
+			// Always use the target path directly without duplicating api/v1 prefix
+			processedPath := path
+			
+			// Replace any path variables with actual values
+			for _, param := range c.Params {
+				processedPath = strings.Replace(processedPath, ":"+param.Key, param.Value, -1)
+			}
 
-			// Add any necessary headers
-			req.Header.Set("X-Forwarded-Host", req.Host)
-			req.Header.Set("X-Forwarded-Proto", "http")
+			// Set the final URL path
+			req.URL.Path = processedPath
 
-			// Preserve the original method
+			// Copy request method
 			req.Method = c.Request.Method
 
-			// Copy all headers from the original request
+			// Copy original headers
 			for key, values := range c.Request.Header {
 				for _, value := range values {
 					req.Header.Add(key, value)
 				}
 			}
 
-			// Path handling
-			if preservePath {
-				// Use the target path directly instead of preserving the full gateway path
-				// Replace any path variables (like :id) with their actual values
-				processedPath := path
-				for _, param := range c.Params {
-					processedPath = strings.Replace(processedPath, ":"+param.Key, param.Value, -1)
-				}
-				req.URL.Path = processedPath
-			} else {
-				// For non-standardized paths (like health checks), use the specified path
-				// Replace any path variables (like :id) with their actual values
-				processedPath := path
-				for _, param := range c.Params {
-					processedPath = strings.Replace(processedPath, ":"+param.Key, param.Value, -1)
-				}
-				req.URL.Path = processedPath
-			}
+			// Add forwarding headers
+			req.Header.Set("X-Forwarded-Host", c.Request.Host)
+			req.Header.Set("X-Forwarded-Proto", "http")
+			req.Header.Set("X-Forwarded-For", c.ClientIP())
+
+			// Debug logging
+			fmt.Printf("Proxying request to %s: %s %s\n", targetURL, req.Method, req.URL.Path)
 		}
 
 		// Add error handling
